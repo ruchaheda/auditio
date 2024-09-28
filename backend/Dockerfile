@@ -1,18 +1,12 @@
-# Use Python slim image
 FROM python:3.9-slim
 
-# Set working directory
 WORKDIR /app
-
-# Install Python dependencies
 COPY requirements.txt .
 RUN pip install -r requirements.txt
-
-# Copy the rest of the application
 COPY . .
 
-# Expose the port Flask will run on
-EXPOSE 5000
+# Install FFmpeg
+RUN apt-get update && apt-get install -y ffmpeg
 
-# Command to run the Flask app
+EXPOSE 5000
 CMD ["python", "app.py"]

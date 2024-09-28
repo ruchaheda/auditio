@@ -4,7 +4,7 @@ import os
 import subprocess
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 UPLOAD_FOLDER = 'uploads'
 TRIMMED_FOLDER = 'trimmed'

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, MouseEventHandler } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import TimelinePlugin from 'wavesurfer.js/plugins/timeline';
 import Hover from 'wavesurfer.js/plugins/hover';
@@ -16,7 +16,9 @@ function App() {
   const [audioFile, setAudioFile] = useState<string | null>(null);
   const [currentRegionStartTime, setCurrentRegionStartTime] = useState<number>(0);  // State for start time
   const [currentRegionEndTime, setCurrentRegionEndTime] = useState<number>(0);      // State for end time
+  const [loopAudio, setLoopAudio] = useState<boolean>(true);
   const [outputName, setOutputName] = useState<string>('');
+  const loopAudioRef = useRef<boolean>(true);
   const wavesurferRef = useRef<WaveSurferInstance | null>(null);
   const regionRef = useRef<any>(null); // Reference for the waveform region
 
@@ -86,6 +88,13 @@ function App() {
         regionRef.current = region;
         updateRegion(region.start, region.end);
         region.play();
+      });
+
+      regions.on('region-out' as any, (region) => {
+        console.log('region-out, loopAudio:', loopAudioRef);
+        if (loopAudioRef.current) {
+          region.play();
+        }
       })
     });
   };
@@ -97,6 +106,17 @@ function App() {
       setCurrentRegionEndTime(newEnd);
     }
   };
+
+  const toggleLooping = () => {
+    console.log('previous loopAudio value: ', loopAudioRef.current);
+    loopAudioRef.current = !loopAudioRef.current;
+    setLoopAudio(loopAudioRef.current);
+    console.log('current loopAudio value: ', loopAudioRef.current);
+  }
+
+  const handlePlayPause: React.MouseEventHandler<HTMLButtonElement> = () => {
+    wavesurferRef.current?.playPause();
+  }
 
   // Handle file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,6 +184,17 @@ function App() {
       <input type="file" onChange={handleFileUpload} />
       
       <div id="waveform"></div>
+
+      <div>
+        <label>
+          <input id="loopAudio" type="checkbox" checked={loopAudioRef.current} onChange={toggleLooping} />
+          Loop regions
+        </label>
+      </div>
+
+      <div>
+        <button onClick={handlePlayPause}>Play/pause</button>
+      </div>
 
       {/* Input fields for start and end time */}
       <div>

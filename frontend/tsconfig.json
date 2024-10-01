@@ -9,10 +9,13 @@
       "strict": true,
       "forceConsistentCasingInFileNames": true,
       "noFallthroughCasesInSwitch": true,
-      "module": "esnext",
-      "moduleResolution": "node",
+      "module": "node16",
+      "moduleResolution": "node16",
+      "typeRoots": ["./node_modules/@types", "./node_modules/wavesurfer.js/plugins"],
       "resolveJsonModule": true,
       "isolatedModules": true,
+      "allowImportingTsExtensions": true,
+      "noEmit": true,
       "jsx": "react-jsx"
     },
     "include": ["src"]

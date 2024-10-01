@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import WaveSurfer from 'wavesurfer.js';
-import RegionsPlugin from 'wavesurfer.js/src/plugin/regions';
+import TimelinePlugin from 'wavesurfer.js/plugins/timeline';
+import Hover from 'wavesurfer.js/plugins/hover';
+import RegionsPlugin from 'wavesurfer.js/plugins/regions';
 
 // Define types for state variables
 interface Region {
@@ -12,24 +14,48 @@ type WaveSurferInstance = ReturnType<typeof WaveSurfer.create>;
 
 function App() {
   const [audioFile, setAudioFile] = useState<string | null>(null);
-  const [startTime, setStartTime] = useState<number>(0);  // State for start time
-  const [endTime, setEndTime] = useState<number>(0);      // State for end time
+  const [currentRegionStartTime, setCurrentRegionStartTime] = useState<number>(0);  // State for start time
+  const [currentRegionEndTime, setCurrentRegionEndTime] = useState<number>(0);      // State for end time
   const [outputName, setOutputName] = useState<string>('');
   const wavesurferRef = useRef<WaveSurferInstance | null>(null);
   const regionRef = useRef<any>(null); // Reference for the waveform region
 
   // Load the uploaded audio file into wavesurfer
   const loadAudio = (filename: string) => {
+    // If a WaveSurfer instance already exists, destroy it before creating a new one
+    if (wavesurferRef.current) {
+      wavesurferRef.current.destroy();
+    }
+
+    // Create a timeline plugin instance with custom options
+    const topTimeline = TimelinePlugin.create({
+      container: '#waveform',
+      height: 20,
+      timeInterval: 1,
+      primaryLabelInterval: 5,
+      secondaryLabelOpacity: 0,
+      style: {
+        fontSize: '20px',
+        color: '#2D5B88',
+      },
+    })
+
+    const hover = Hover.create({
+      lineColor: '#ff0000',
+      lineWidth: 2,
+      labelBackground: '#555',
+      labelColor: '#fff',
+      labelSize: '11px',
+    })
+
+    const regions = RegionsPlugin.create();
+
     const wavesurfer = WaveSurfer.create({
       container: '#waveform',
-      waveColor: '#A8DBA8',
-      progressColor: '#3B8686',
+      waveColor: 'rgb(200, 0, 200)',
+      progressColor: 'rgb(100, 0, 100)',
       height: 100,
-      plugins: [
-        RegionsPlugin.create({
-          dragSelection: true,  // Enable drag-and-drop functionality
-        }),
-      ],
+      plugins: [topTimeline, hover, regions]
     });
 
     wavesurferRef.current = wavesurfer;
@@ -37,45 +63,38 @@ function App() {
     // Load audio file from the server
     wavesurfer.load(`http://localhost:5001/uploads/${filename}`);
 
-    // On ready, create a draggable region
-    wavesurfer.on('ready', () => {
-      regionRef.current = wavesurfer.addRegion({
-        start: 0,
-        end: wavesurfer.getDuration(), // Initialize with the full duration
-        color: 'rgba(0, 255, 0, 0.1)', // Visual indicator for the selected region
+    wavesurfer.on('ready' as any, () => {
+      console.log("waveform is ready!");
+
+      regions.enableDragSelection({
+        color: 'rgba(255, 0, 0, 0.3)',
       });
-    });
 
-    // Update start and end time when region is updated by dragging
-    wavesurfer.on('region-update-end', (region: Region) => {
-      setStartTime(region.start);
-      setEndTime(region.end);
-    });
+      // Listening for when user seeks to a specific part on the waveform. 
+      wavesurfer.on('seeking' as any, (progress) => {
+        console.log('User is interacting with the waveform:', progress);
+      });
+  
+      // Listen for region creation
+      regions.on('region-created' as any, (region) => {
+        regionRef.current = region;
+        updateRegion(region.start, region.end);
+      });
 
-    // Listen for clicks on the waveform to update the start and end times
-    wavesurfer.on('seek', (progress: number) => {
-      const clickedTime = progress * wavesurfer.getDuration();
-      const middlePoint = (startTime + endTime) / 2;
-
-      if (clickedTime < middlePoint) {
-        // Update start time if the click is before the middle point
-        setStartTime(clickedTime);
-        updateRegion(clickedTime, endTime);
-      } else {
-        // Update end time if the click is after the middle point
-        setEndTime(clickedTime);
-        updateRegion(startTime, clickedTime);
-      }
+      regions.on('region-clicked' as any, (region, e) => {
+        e.stopPropagation(); // prevent triggering a click on the waveform
+        regionRef.current = region;
+        updateRegion(region.start, region.end);
+        region.play();
+      })
     });
   };
 
   // Update region when start and end times are manually or programmatically changed
   const updateRegion = (newStart: number, newEnd: number) => {
     if (regionRef.current) {
-      regionRef.current.update({
-        start: newStart,
-        end: newEnd,
-      });
+      setCurrentRegionStartTime(newStart);
+      setCurrentRegionEndTime(newEnd);
     }
   };
 
@@ -104,8 +123,8 @@ function App() {
 
     const trimData = {
       filename: audioFile,
-      start: startTime,
-      end: endTime,
+      start: currentRegionStartTime,
+      end: currentRegionEndTime,
       output_name: outputName,
     };
 
@@ -128,20 +147,20 @@ function App() {
   // Manually update the start time
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
-    setStartTime(value);
-    updateRegion(value, endTime); // Update the region when start time is changed
+    setCurrentRegionStartTime(value);
+    updateRegion(value, currentRegionEndTime); // Update the region when start time is changed
   };
 
   // Manually update the end time
   const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
-    setEndTime(value);
-    updateRegion(startTime, value); // Update the region when end time is changed
+    setCurrentRegionEndTime(value);
+    updateRegion(currentRegionStartTime, value); // Update the region when end time is changed
   };
 
   return (
     <div>
-      <h1>Audio Trimmer</h1>
+      <h1>Audio Looper & Trimmer!</h1>
       <input type="file" onChange={handleFileUpload} />
       
       <div id="waveform"></div>
@@ -151,7 +170,7 @@ function App() {
         <label>Start Time: </label>
         <input
           type="number"
-          value={startTime}
+          value={currentRegionStartTime}
           step="0.01"
           onChange={handleStartTimeChange}
         />
@@ -161,7 +180,7 @@ function App() {
         <label>End Time: </label>
         <input
           type="number"
-          value={endTime}
+          value={currentRegionEndTime}
           step="0.01"
           onChange={handleEndTimeChange}
         />

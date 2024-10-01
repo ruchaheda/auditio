@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect, MouseEventHandler } from 'react';
+import React, { useState, useRef } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import TimelinePlugin from 'wavesurfer.js/plugins/timeline';
 import Hover from 'wavesurfer.js/plugins/hover';
 import RegionsPlugin from 'wavesurfer.js/plugins/regions';
+import { AppBar, Box, Button, Checkbox, IconButton, TextField, Toolbar, Typography } from '@mui/material';
+import { CloudUpload, Forward5, Forward10, Forward30, Replay5, Replay10, Replay30 } from '@mui/icons-material';
 
 // Define types for state variables
 interface Region {
@@ -17,7 +19,7 @@ function App() {
   const [currentRegionStartTime, setCurrentRegionStartTime] = useState<number>(0);  // State for start time
   const [currentRegionEndTime, setCurrentRegionEndTime] = useState<number>(0);      // State for end time
   const [loopAudio, setLoopAudio] = useState<boolean>(true);
-  const [outputName, setOutputName] = useState<string>('');
+  const [snippetName, setSnippetName] = useState<string>('');
   const loopAudioRef = useRef<boolean>(true);
   const wavesurferRef = useRef<WaveSurferInstance | null>(null);
   const regionRef = useRef<any>(null); // Reference for the waveform region
@@ -57,6 +59,12 @@ function App() {
       waveColor: 'rgb(200, 0, 200)',
       progressColor: 'rgb(100, 0, 100)',
       height: 100,
+      // Set a bar width
+      barWidth: 2,
+      // Optionally, specify the spacing between bars
+      barGap: 1,
+      // And the bar radius
+      barRadius: 2,
       plugins: [topTimeline, hover, regions]
     });
 
@@ -108,14 +116,27 @@ function App() {
   };
 
   const toggleLooping = () => {
-    console.log('previous loopAudio value: ', loopAudioRef.current);
+    // console.log('previous loopAudio value: ', loopAudioRef.current);
     loopAudioRef.current = !loopAudioRef.current;
     setLoopAudio(loopAudioRef.current);
-    console.log('current loopAudio value: ', loopAudioRef.current);
+    // console.log('current loopAudio value: ', loopAudioRef.current);
   }
 
   const handlePlayPause: React.MouseEventHandler<HTMLButtonElement> = () => {
     wavesurferRef.current?.playPause();
+  }
+
+  const seek = (seconds: number) => {
+    if (!wavesurferRef.current) {
+      return;
+    }
+
+    const currentTime = wavesurferRef.current.getCurrentTime();
+    const newTime = currentTime + seconds;
+    const duration = wavesurferRef.current.getDuration();
+    if (newTime >= 0 && newTime <= duration) {
+      wavesurferRef.current.seekTo(newTime / duration);
+    }
   }
 
   // Handle file upload
@@ -145,7 +166,7 @@ function App() {
       filename: audioFile,
       start: currentRegionStartTime,
       end: currentRegionEndTime,
-      output_name: outputName,
+      output_name: snippetName,
     };
 
     fetch('http://localhost:5001/trim', {
@@ -179,57 +200,93 @@ function App() {
   };
 
   return (
-    <div>
-      <h1>Audio Looper & Trimmer!</h1>
-      <input type="file" onChange={handleFileUpload} />
-      
-      <div id="waveform"></div>
+    <Box>
+      <AppBar position="static">
+        <Toolbar>
+          <Typography variant="h5" component="div">Audio Looper & Trimmer</Typography>
+        </Toolbar>
+      </AppBar>
 
-      <div>
-        <label>
-          <input id="loopAudio" type="checkbox" checked={loopAudioRef.current} onChange={toggleLooping} />
-          Loop regions
-        </label>
-      </div>
+      <Box
+        display="flex"
+        flexDirection="column"
+        alignItems="center"
+        justifyContent="center"
+        gap="20px"
+        p={2}
+      >
+        <Button
+          variant="contained"
+          component="label"
+          startIcon={<CloudUpload />}
+        >Upload File
+          <input type="file" hidden onChange={handleFileUpload} />
+        </Button>
+        { audioFile && (
+          <p><b>Current file:</b> {audioFile}</p>
+        )}
+        
+        <Box width="100vw" id="waveform" />
 
-      <div>
-        <button onClick={handlePlayPause}>Play/pause</button>
-      </div>
+        <Box
+          display="flex"
+          justifyContent="center"
+          gap="20px"
+          p={2}
+        >
+          <Box>
+            <Checkbox 
+              checked={loopAudio}
+              onChange={toggleLooping}
+              inputProps={{ 'aria-label': 'controlled' }}
+            />Loop Audio
+          </Box>
 
-      {/* Input fields for start and end time */}
-      <div>
-        <label>Start Time: </label>
-        <input
-          type="number"
-          value={currentRegionStartTime}
-          step="0.01"
-          onChange={handleStartTimeChange}
-        />
-      </div>
-      
-      <div>
-        <label>End Time: </label>
-        <input
-          type="number"
-          value={currentRegionEndTime}
-          step="0.01"
-          onChange={handleEndTimeChange}
-        />
-      </div>
+          <IconButton size="large" onClick={() => seek(-30)}><Replay30 fontSize="large" /></IconButton>
+          <IconButton size="large" onClick={() => seek(-10)}><Replay10 fontSize="large" /></IconButton>
+          <IconButton size="large" onClick={() => seek(-5)}><Replay5 fontSize="large" /></IconButton>
 
-      {/* Input field for output name */}
-      <div>
-        <label>Output File Name: </label>
-        <input
-          type="text"
-          placeholder="Enter output name"
-          value={outputName}
-          onChange={(e) => setOutputName(e.target.value)}
-        />
-      </div>
+          <Button variant="contained" onClick={handlePlayPause} color="primary">Play/Pause</Button>
 
-      <button onClick={handleTrim}>Trim & Download</button>
-    </div>
+          <IconButton size="large" onClick={() => seek(5)}><Forward5 fontSize="large" /></IconButton>
+          <IconButton size="large" onClick={() => seek(10)}><Forward10 fontSize="large" /></IconButton>
+          <IconButton size="large" onClick={() => seek(30)}><Forward30 fontSize="large" /></IconButton>
+        </Box>
+
+        <Box
+          component="form"
+          sx={{ '& .MuiTextField-root': { m: 1, width: '25ch' } }} 
+        >
+          <TextField 
+            id="outlined-number" 
+            label="Start Time" 
+            type="number"
+            variant="outlined" 
+            value={currentRegionStartTime} 
+            onChange={handleStartTimeChange} 
+          />
+        
+          <TextField 
+            id="outlined-number" 
+            label="End Time" 
+            type="number" 
+            variant="outlined" 
+            value={currentRegionEndTime} 
+            onChange={handleEndTimeChange}
+          />
+
+          <TextField 
+            id="outlined-basic"
+            label="Snippet Name"
+            variant="outlined"
+            value={snippetName}
+            onChange={(e) => setSnippetName(e.target.value)}
+          />
+        </Box>
+
+        <Button variant="contained" onClick={handleTrim} color="primary">Trim & Download</Button>
+      </Box>
+    </Box>
   );
 }
 

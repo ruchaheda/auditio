@@ -25,103 +25,104 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
 
     // Load the uploaded audio file into wavesurfer
     const loadAudio = (filename: string) => {
-        // If a WaveSurfer instance already exists, destroy it before creating a new one
-        if (wavesurferRef.current) {
-            wavesurferRef.current.destroy();
-        }
+            // If a WaveSurfer instance already exists, destroy it before creating a new one
+            if (wavesurferRef.current) {
+                wavesurferRef.current.destroy();
+            }
 
-        // Create a timeline plugin instance with custom options
-        const topTimeline = TimelinePlugin.create({
-            container: '#waveform',
-            height: 20,
-            timeInterval: 1,
-            primaryLabelInterval: 5,
-            secondaryLabelOpacity: 0,
-            style: {
-                fontSize: '20px',
-                color: '#2D5B88',
-            },
-        })
-
-        const hover = Hover.create({
-            lineColor: '#ff0000',
-            lineWidth: 2,
-            labelBackground: '#555',
-            labelColor: '#fff',
-            labelSize: '11px',
-        })
-
-        const regionPlugin = RegionsPlugin.create();
-
-        const wavesurfer = WaveSurfer.create({
-            container: '#waveform',
-            waveColor: 'rgb(200, 0, 200)',
-            progressColor: 'rgb(100, 0, 100)',
-            height: 100,
-            barWidth: 2,
-            barGap: 1,
-            barRadius: 2,
-            plugins: [topTimeline, hover, regionPlugin]
-        });
-
-        console.log("active plugins, ", wavesurfer.getActivePlugins());
-
-        wavesurferRef.current = wavesurfer;
-
-        // Load audio file from the server
-        wavesurfer.load(`http://localhost:5001/uploads/${filename}`);
-
-        wavesurfer.on('ready' as any, () => {
-        console.log("waveform is ready!");
-
-        regionPlugin.enableDragSelection({
-            color: 'rgba(255, 0, 0, 0.3)',
-        });
-
-        // Listening for when user seeks to a specific part on the waveform. 
-        wavesurfer.on('seeking' as any, (progress) => {
-            console.log('User is interacting with the waveform:', progress);
-        });
-    
-        // Listen for region creation
-        regionPlugin.on('region-created' as any, (region) => {
-            console.log("region-created! region: ", region);
-            
-            const regionName = region.content ? region.content : "New Region";
-
-            region.setOptions({
-                content: regionName,
-                contentEditable: true,
+            // Create a timeline plugin instance with custom options
+            const topTimeline = TimelinePlugin.create({
+                container: '#waveform',
+                height: 20,
+                timeInterval: 1,
+                primaryLabelInterval: 5,
+                secondaryLabelOpacity: 0,
+                style: {
+                    fontSize: '20px',
+                    color: '#2D5B88',
+                },
             })
-            
-            regionRef.current = region;
 
-            regions.current = {
-                ...regions.current,
-                [region.id]: region
-            }
-            setRenderTrigger(prev => prev + 1);
-        });
+            const hover = Hover.create({
+                lineColor: '#ff0000',
+                lineWidth: 2,
+                labelBackground: '#555',
+                labelColor: '#fff',
+                labelSize: '11px',
+            })
 
-        regionPlugin.on('region-clicked' as any, (region, e) => {
-            e.stopPropagation(); // prevent triggering a click on the waveform
-            regionRef.current = region;
-            console.log('region-clicked! current region: ', regionRef.current);
-            regionRef.current.play();
-            setRenderTrigger(prev => prev + 1);
+            const regionPlugin = RegionsPlugin.create();
 
-            // TODO: BUG - figure out why clicking on a different region is not playing that new region. 
-        });
+            const wavesurfer = WaveSurfer.create({
+                container: '#waveform',
+                waveColor: 'rgb(200, 0, 200)',
+                progressColor: 'rgb(100, 0, 100)',
+                height: 100,
+                barWidth: 2,
+                barGap: 1,
+                barRadius: 2,
+                plugins: [topTimeline, hover, regionPlugin]
+            });
 
-        regionPlugin.on('region-out' as any, (region) => {
-            if (loopAudioRef.current) {
-            region.play();
-            }
-        })
+            console.log("active plugins, ", wavesurfer.getActivePlugins());
 
-        regionPlugin.on('region-updated' as any, (region) => {
-            setRenderTrigger(prev => prev + 1);
-        })
+            wavesurferRef.current = wavesurfer;
+
+            // Load audio file from the server
+            wavesurfer.load(`http://localhost:5001/uploads/${filename}`);
+
+            wavesurfer.on('ready' as any, () => {
+            console.log("waveform is ready!");
+
+            regionPlugin.enableDragSelection({
+                color: 'rgba(255, 0, 0, 0.3)',
+            });
+
+            // Listening for when user seeks to a specific part on the waveform. 
+            wavesurfer.on('seeking' as any, (progress) => {
+                console.log('User is interacting with the waveform:', progress);
+            });
+        
+            // Listen for region creation
+            regionPlugin.on('region-created' as any, (region) => {
+                console.log("region-created! region: ", region);
+                
+                const regionName = region.content ? region.content : "New Region";
+
+                region.setOptions({
+                    content: regionName,
+                    contentEditable: true,
+                })
+                
+                regionRef.current = region;
+
+                regions.current = {
+                    ...regions.current,
+                    [region.id]: region
+                }
+                setRenderTrigger(prev => prev + 1);
+            });
+
+            regionPlugin.on('region-clicked' as any, (region, e) => {
+                e.stopPropagation(); // prevent triggering a click on the waveform
+                regionRef.current = region;
+                console.log('region-clicked! current region: ', regionRef.current);
+                regionRef.current.play();
+                setRenderTrigger(prev => prev + 1);
+
+                // TODO: BUG - figure out why clicking on a different region is not playing that new region. 
+            });
+
+            regionPlugin.on('region-out' as any, (region) => {
+                if (loopAudioRef.current) {
+                region.play();
+                }
+            })
+
+            regionPlugin.on('region-updated' as any, (region) => {
+                regionRef.current = region;
+                setRenderTrigger(prev => prev + 1);
+            })
         });
     };
 

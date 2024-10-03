@@ -86,17 +86,19 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
         // Listen for region creation
         regionPlugin.on('region-created' as any, (region) => {
             console.log("region-created! region: ", region);
+            
+            const regionName = region.content ? region.content : "New Region";
+
+            region.setOptions({
+                content: regionName,
+                contentEditable: true,
+            })
+            
             regionRef.current = region;
 
-            if (!region.content) {
-            region.content = document.createElement('div');
-            region.content.textContent = "New Region";
-            }
-            region.contentEditable = true;
-
             regions.current = {
-            ...regions.current,
-            [region.id]: region
+                ...regions.current,
+                [region.id]: region
             }
             setRenderTrigger(prev => prev + 1);
         });
@@ -104,7 +106,11 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
         regionPlugin.on('region-clicked' as any, (region, e) => {
             e.stopPropagation(); // prevent triggering a click on the waveform
             regionRef.current = region;
-            region.play();
+            console.log('region-clicked! current region: ', regionRef.current);
+            regionRef.current.play();
+            setRenderTrigger(prev => prev + 1);
+
+            // TODO: BUG - figure out why clicking on a different region is not playing that new region. 
         });
 
         regionPlugin.on('region-out' as any, (region) => {

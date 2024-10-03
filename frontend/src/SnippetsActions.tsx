@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/plugins/regions';
 import { 
     Box,
@@ -8,14 +9,15 @@ import {
 
 type SnippetActionsProps = {
     regions: any,
-    currentWavesurferRef: any,
-    currentRegionRef: any,
+    wavesurferRef: any,
+    regionRef: any,
     renderTrigger: number,
     setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
 }
 
-const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, currentWavesurferRef, currentRegionRef, renderTrigger, setRenderTrigger}) => {
+const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef, regionRef, renderTrigger, setRenderTrigger}) => {
 
+    const [regionId, setRegionId] = useState<string>('');
     const [currentRegionStartTime, setCurrentRegionStartTime] = useState<number>(0);  // State for start time
     const [currentRegionEndTime, setCurrentRegionEndTime] = useState<number>(0);      // State for end time
     const [regionName, setRegionName] = useState<string>('');
@@ -24,50 +26,78 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, currentWavesur
     const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = parseFloat(e.target.value);
         setCurrentRegionStartTime(value);
-        updateRegion(value, currentRegionEndTime); // Update the region when start time is changed
+        setRegionId('');
     };
 
     // Manually update the end time
     const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = parseFloat(e.target.value);
         setCurrentRegionEndTime(value);
-        updateRegion(currentRegionStartTime, value); // Update the region when end time is changed
+        setRegionId('');
     };
 
     const updateRegion = (newStart: number, newEnd: number, name?: string) => {
-        if (currentRegionRef) {
-            setCurrentRegionStartTime(newStart);
-            setCurrentRegionEndTime(newEnd);
-            if (name) {
-            setRegionName(name);
-            }
-        }
+      if (regionRef.current) {
+        setRegionId(regionRef.current.id);
+      }
+      else {
+        setRegionId('');
+      }
+
+      setCurrentRegionStartTime(newStart);
+      setCurrentRegionEndTime(newEnd);
+
+      if (name) {
+        setRegionName(name);
+      }
     };
 
     useEffect(() => {
-        if (currentRegionRef) {
-            updateRegion(currentRegionRef.start, currentRegionRef.end, currentRegionRef.content?.innerText);
+        if (regionRef.current) {
+            updateRegion(regionRef.current.start, regionRef.current.end, regionRef.current.content?.innerText);
         }
-    }, [currentRegionRef, currentRegionRef?.start, currentRegionRef?.end]);
+        else {
+            updateRegion(0, 0, '');
+        }
+    }, [renderTrigger, regionRef.current, regionRef.current?.id, regionRef.current?.start, regionRef.current?.end]);
 
     const createRegionManually = () => {
-        const newRegion = (currentWavesurferRef.current?.getActivePlugins()[2] as RegionsPlugin).addRegion({
-         start: currentRegionStartTime,
-         end: currentRegionEndTime,
-         content: regionName ? regionName : "New Region",
-         contentEditable: true,
-         drag: true,
-         resize: true,
-       });
-   
-       currentRegionRef.current = newRegion
-       regions.current = {
-         ...regions.current,
-         [newRegion.id]: newRegion
-       }
-       setRenderTrigger(prev => prev + 1);
-   
-     }
+      // if no pre-existing region
+
+      const newRegionName = regionName ? regionName : "New Region";
+      console.log("newRegionName: ", newRegionName);
+
+      if (regionId == '') {
+        console.log("regionName: ", regionName);
+        const newRegion = (wavesurferRef.current?.getActivePlugins()[2] as RegionsPlugin).addRegion({
+          start: currentRegionStartTime,
+          end: currentRegionEndTime,
+          content: newRegionName,
+          contentEditable: true,
+          drag: true,
+          resize: true,
+        });
+
+        regionRef.current = newRegion
+          regions.current = {
+            ...regions.current,
+          [newRegion.id]: newRegion
+        }
+      }
+      else {
+        const regionToUpdate = regions.current[regionId];
+
+        regionToUpdate.setOptions({
+          start: currentRegionStartTime,
+          end: currentRegionEndTime,
+          content: regionName,
+        })
+
+        regionRef.current = regionToUpdate;
+      }
+  
+      setRenderTrigger(prev => prev + 1);
+     };
 
     return (
         <Box
@@ -77,7 +107,19 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, currentWavesur
           justifyContent="center"
         >
           <TextField 
-            id="outlined-number" 
+            id="regionId"
+            label="Region ID"
+            variant="filled"
+            value={regionId}
+            slotProps={{
+              input: {
+                readOnly: true,
+              },
+            }}
+          />
+
+          <TextField 
+            id="startTime" 
             label="Start Time" 
             type="number"
             variant="outlined" 
@@ -86,7 +128,7 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, currentWavesur
           />
         
           <TextField 
-            id="outlined-number" 
+            id="endTime" 
             label="End Time" 
             type="number" 
             variant="outlined" 
@@ -95,14 +137,14 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, currentWavesur
           />
 
           <TextField 
-            id="outlined-basic"
-            label="Snippet Name"
+            id="regionName"
+            label="Region Name"
             variant="outlined"
             value={regionName}
             onChange={(e) => setRegionName(e.target.value)}
           />
 
-          <Button variant="outlined" onClick={createRegionManually} color="secondary">Create Snippet</Button>
+          <Button variant="outlined" onClick={createRegionManually} color="secondary">Create/Update Snippet</Button>
         </Box>
     );
 }

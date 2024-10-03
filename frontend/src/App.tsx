@@ -87,15 +87,20 @@ function App() {
 
         <SnippetsActions 
           regions={regions}
-          currentWavesurferRef={wavesurferRef.current}
-          currentRegionRef={regionRef.current}
+          wavesurferRef={wavesurferRef}
+          regionRef={regionRef}
           renderTrigger={renderTrigger}
           setRenderTrigger={setRenderTrigger}
         />
 
         <Button variant="contained" onClick={handleTrim} color="primary">Trim & Download</Button>
 
-        <SnippetsView regions={regions} renderTrigger={renderTrigger} />
+        <SnippetsView 
+          regions={regions} 
+          regionRef={regionRef}
+          renderTrigger={renderTrigger} 
+          setRenderTrigger={setRenderTrigger}
+        />
       </Box>
     </Box>
   );

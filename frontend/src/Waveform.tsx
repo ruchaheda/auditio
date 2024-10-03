@@ -120,6 +120,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
         })
 
         regionPlugin.on('region-updated' as any, (region) => {
+            regionRef.current = region;
             setRenderTrigger(prev => prev + 1);
         })
         });

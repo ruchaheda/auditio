@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
     Box,
     IconButton,
@@ -13,18 +13,26 @@ import {
 } from '@mui/material';
 import {
     ArrowCircleUp,
-    Edit,
     Delete,
+    Share,
+    Upload,
 } from '@mui/icons-material';
+import ExportDialog from './ExportDialog.tsx';
+import ImportDialog from './ImportDialog.tsx';
 
 type SnippetsProps = {
+    audioFile: string | null,
     regions: any,
+    wavesurferRef: any,
     regionRef: any,
     renderTrigger: number,
     setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
 }
 
-const Snippets: React.FC<SnippetsProps> = ({regions, regionRef, renderTrigger, setRenderTrigger}) => {
+const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRef, regionRef, renderTrigger, setRenderTrigger}) => {
+
+  const [openExport, setOpenExport] = useState(false);
+  const [openImport, setOpenImport] = useState(false);
 
   const loadSnippet = (regionId: string) => {
     regionRef.current = regions.current[regionId]; // why is this not sufficient to update the fields in SnippetActions?
@@ -46,6 +54,12 @@ const Snippets: React.FC<SnippetsProps> = ({regions, regionRef, renderTrigger, s
           <TableContainer component={Paper}>
           <Table sx={{ width: "80vw"}} aria-label="simple table">
             <TableHead>
+              <TableRow>
+                <TableCell colSpan={5} align="right">
+                  <Tooltip title="Share"><IconButton onClick={() => setOpenImport(true)}><Upload fontSize="large" /></IconButton></Tooltip>
+                  <Tooltip title="Share"><IconButton onClick={() => setOpenExport(true)}><Share fontSize="large" /></IconButton></Tooltip>
+                </TableCell>
+              </TableRow>
               <TableRow>
                 <TableCell><b>ID</b></TableCell>
                 <TableCell><b>Start Time</b></TableCell>
@@ -71,8 +85,23 @@ const Snippets: React.FC<SnippetsProps> = ({regions, regionRef, renderTrigger, s
             </TableBody>
           </Table>
         </TableContainer>
+        
+        <ExportDialog 
+          regions={regions}
+          openExport={openExport}
+          setOpenExport={setOpenExport}
+        />
+
+        <ImportDialog 
+          audioFile={audioFile}
+          regions={regions}
+          wavesurferRef={wavesurferRef}
+          regionRef={regionRef}
+          openImport={openImport}
+          setOpenImport={setOpenImport}
+        />
       </Box>
   );
 }
 
-export default Snippets;
+export default SnippetsView;

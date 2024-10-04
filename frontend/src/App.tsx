@@ -96,7 +96,9 @@ function App() {
         <Button variant="contained" onClick={handleTrim} color="primary">Trim & Download</Button>
 
         <SnippetsView 
+          audioFile={audioFile}
           regions={regions} 
+          wavesurferRef={wavesurferRef}
           regionRef={regionRef}
           renderTrigger={renderTrigger} 
           setRenderTrigger={setRenderTrigger}

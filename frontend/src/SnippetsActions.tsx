@@ -13,26 +13,32 @@ type SnippetActionsProps = {
     regionRef: any,
     renderTrigger: number,
     setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
+    secondsToHHMMSS: (seconds:number) => string,
+    HHMMSSToSeconds: (timestamp: string) => number,
 }
 
-const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef, regionRef, renderTrigger, setRenderTrigger}) => {
+const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef, regionRef, renderTrigger, setRenderTrigger, secondsToHHMMSS, HHMMSSToSeconds}) => {
 
     const [regionId, setRegionId] = useState<string>('');
-    const [currentRegionStartTime, setCurrentRegionStartTime] = useState<number>(0);  // State for start time
-    const [currentRegionEndTime, setCurrentRegionEndTime] = useState<number>(0);      // State for end time
+    const [activeRegionStartTime, setActiveRegionStartTime] = useState<number>(0);  // State for start time
+    const [activeRegionEndTime, setActiveRegionEndTime] = useState<number>(0);      // State for end time
+    const [enteredRegionStartTime, setEnteredRegionStartTime] = useState<string>('');
+    const [enteredRegionEndTime, setEnteredRegionEndTime] = useState<string>('');
     const [regionName, setRegionName] = useState<string>('');
+    const [error, setError] = useState(false);
+
+    // Regular expression to match HH:MM:SS or MM:SS
+    const timeRegex = /^(\d{2}):([0-5]\d):([0-5]\d)$|^([0-5]?\d):([0-5]\d)$/;
 
     // Manually update the start time
     const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseFloat(e.target.value);
-        setCurrentRegionStartTime(value);
+        setEnteredRegionStartTime(e.target.value);
         setRegionId('');
     };
 
     // Manually update the end time
     const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseFloat(e.target.value);
-        setCurrentRegionEndTime(value);
+        setEnteredRegionEndTime(e.target.value);
         setRegionId('');
     };
 
@@ -44,8 +50,11 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
         setRegionId('');
       }
 
-      setCurrentRegionStartTime(newStart);
-      setCurrentRegionEndTime(newEnd);
+      setActiveRegionStartTime(newStart);
+      setActiveRegionEndTime(newEnd);
+
+      setEnteredRegionStartTime(secondsToHHMMSS(newStart));
+      setEnteredRegionEndTime(secondsToHHMMSS(newEnd));
 
       if (name) {
         setRegionName(name);
@@ -65,13 +74,13 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
       // if no pre-existing region
 
       const newRegionName = regionName ? regionName : "New Region";
-      console.log("newRegionName: ", newRegionName);
 
-      if (regionId == '') {
-        console.log("regionName: ", regionName);
-        const newRegion = (wavesurferRef.current?.getActivePlugins()[2] as RegionsPlugin).addRegion({
-          start: currentRegionStartTime,
-          end: currentRegionEndTime,
+      // printDebugStatements("createRegionManually", "right before creating new region with no regionId");
+
+      if (regionId == '' && wavesurferRef.current) {
+        const newRegion = (wavesurferRef.current.getActivePlugins()[1] as RegionsPlugin).addRegion({
+          start: HHMMSSToSeconds(enteredRegionStartTime),
+          end: HHMMSSToSeconds(enteredRegionEndTime),
           content: newRegionName,
           contentEditable: true,
           drag: true,
@@ -88,8 +97,8 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
         const regionToUpdate = regions.current[regionId];
 
         regionToUpdate.setOptions({
-          start: currentRegionStartTime,
-          end: currentRegionEndTime,
+          start: HHMMSSToSeconds(enteredRegionStartTime),
+          end: HHMMSSToSeconds(enteredRegionEndTime),
           content: regionName,
         })
 
@@ -99,6 +108,20 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
       setRenderTrigger(prev => prev + 1);
      };
 
+    const printDebugStatements = (functionName: string, note: string) => {
+      console.log("functionName: " + functionName + "\n");
+      console.log("note: " + note + "\n");
+      console.log("regions: ", regions.current);
+      console.log("wavesurferRef.current: ", wavesurferRef.current);
+      console.log("wavesurferRef.current.getActivePlugins: ", wavesurferRef.current.getActivePlugins());
+      console.log("currentRegionStarttime: ", activeRegionStartTime);
+      console.log("currentRegionEndTime: ", activeRegionEndTime);
+      console.log("regionId: ", regionId);
+
+      console.log("enteredRegionStartTime: ", enteredRegionStartTime);
+      console.log("enteredRegionEndTime: ", enteredRegionEndTime);
+    }
+
     return (
         <Box
           display="flex"
@@ -106,35 +129,18 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
           gap="20px"
           justifyContent="center"
         >
-          <TextField 
+          {/* <TextField 
             id="regionId"
             label="Region ID"
             variant="filled"
+            hidden
             value={regionId}
             slotProps={{
               input: {
                 readOnly: true,
               },
             }}
-          />
-
-          <TextField 
-            id="startTime" 
-            label="Start Time" 
-            type="number"
-            variant="outlined" 
-            value={currentRegionStartTime} 
-            onChange={handleStartTimeChange} 
-          />
-        
-          <TextField 
-            id="endTime" 
-            label="End Time" 
-            type="number" 
-            variant="outlined" 
-            value={currentRegionEndTime} 
-            onChange={handleEndTimeChange}
-          />
+          /> */}
 
           <TextField 
             id="regionName"
@@ -142,6 +148,24 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
             variant="outlined"
             value={regionName}
             onChange={(e) => setRegionName(e.target.value)}
+          />
+
+          <TextField 
+            id="startTime" 
+            label="Start Time" 
+            type="string"
+            variant="outlined" 
+            value={enteredRegionStartTime} 
+            onChange={handleStartTimeChange} 
+          />
+        
+          <TextField 
+            id="endTime" 
+            label="End Time" 
+            type="string" 
+            variant="outlined" 
+            value={enteredRegionEndTime} 
+            onChange={handleEndTimeChange}
           />
 
           <Button variant="outlined" onClick={createRegionManually} color="secondary">Create/Update Snippet</Button>

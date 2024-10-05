@@ -140,6 +140,7 @@ function App() {
           renderTrigger={renderTrigger} 
           setRenderTrigger={setRenderTrigger}
           secondsToHHMMSS={secondsToHHMMSS}
+          HHMMSSToSeconds={HHMMSSToSeconds}
         />
       </Box>
     </Box>

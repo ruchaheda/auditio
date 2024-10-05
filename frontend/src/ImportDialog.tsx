@@ -22,9 +22,10 @@ type ImportDialogProps = {
     regionRef: any,
     openImport: boolean,
     setOpenImport: React.Dispatch<React.SetStateAction<boolean>>,
+    HHMMSSToSeconds: (timestamp: string) => number,
 }
 
-const ImportDialog: React.FC<ImportDialogProps> = ({audioFile, regions, wavesurferRef, regionRef, openImport, setOpenImport}) => {
+const ImportDialog: React.FC<ImportDialogProps> = ({audioFile, regions, wavesurferRef, regionRef, openImport, setOpenImport, HHMMSSToSeconds}) => {
 
     const [importText, setImportText] = useState('');
 
@@ -43,12 +44,15 @@ const ImportDialog: React.FC<ImportDialogProps> = ({audioFile, regions, wavesurf
         for (const line of lines) {
             if (line != "") {
                 const values = line.split(',');
+                console.log("values: ", values);
 
-                const newRegionStartTime = Number(values[0]);
-                const newRegionEndTime = Number(values[1]);
-                const newRegionName = values[2];
+                const newRegionStartTime = HHMMSSToSeconds(values[0].trim());
+                const newRegionEndTime = HHMMSSToSeconds(values[1].trim());
+                const newRegionName = values[2].trim();
 
-                const newRegion = (wavesurferRef.current?.getActivePlugins()[2] as RegionsPlugin).addRegion({
+                console.log("newRegionStartTime: " + newRegionStartTime + "; newRegionEndTime: " + newRegionEndTime);
+
+                const newRegion = (wavesurferRef.current?.getActivePlugins()[1] as RegionsPlugin).addRegion({
                     start: newRegionStartTime,
                     end: newRegionEndTime,
                     content: newRegionName,

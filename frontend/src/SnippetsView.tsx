@@ -28,9 +28,10 @@ type SnippetsProps = {
     renderTrigger: number,
     setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
     secondsToHHMMSS: (seconds:number) => string,
+    HHMMSSToSeconds: (timestamp: string) => number,
 }
 
-const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRef, regionRef, renderTrigger, setRenderTrigger, secondsToHHMMSS}) => {
+const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRef, regionRef, renderTrigger, setRenderTrigger, secondsToHHMMSS, HHMMSSToSeconds}) => {
 
   const [openExport, setOpenExport] = useState(false);
   const [openImport, setOpenImport] = useState(false);
@@ -101,6 +102,7 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
           regions={regions}
           openExport={openExport}
           setOpenExport={setOpenExport}
+          secondsToHHMMSS={secondsToHHMMSS}
         />
 
         <ImportDialog 
@@ -110,6 +112,7 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
           regionRef={regionRef}
           openImport={openImport}
           setOpenImport={setOpenImport}
+          HHMMSSToSeconds={HHMMSSToSeconds}
         />
       </Box>
   );

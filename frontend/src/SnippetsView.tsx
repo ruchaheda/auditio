@@ -27,15 +27,26 @@ type SnippetsProps = {
     regionRef: any,
     renderTrigger: number,
     setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
+    secondsToHHMMSS: (seconds:number) => string,
 }
 
-const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRef, regionRef, renderTrigger, setRenderTrigger}) => {
+const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRef, regionRef, renderTrigger, setRenderTrigger, secondsToHHMMSS}) => {
 
   const [openExport, setOpenExport] = useState(false);
   const [openImport, setOpenImport] = useState(false);
 
   const loadSnippet = (regionId: string) => {
+
+    // regionRef.current.set rgba(0, 0, 0, 0.1), rgba(255, 0, 0, 0.3)
+    regionRef.current.setOptions({
+        color: 'rgba(0, 0, 0, 0.1)'
+    })
+
     regionRef.current = regions.current[regionId]; // why is this not sufficient to update the fields in SnippetActions?
+    regionRef.current.setOptions({
+        color: 'rgba(255, 0, 0, 0.3)'
+    })
+
     setRenderTrigger(prev => prev + 1);
 
     // TODO: Add color change to previous region back to grey. update new color to something nice. 
@@ -73,8 +84,8 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
                 return (
                 <TableRow key={index}>
                   <TableCell>{region.id}</TableCell>
-                  <TableCell>{region.start}</TableCell>
-                  <TableCell>{region.end}</TableCell>
+                  <TableCell>{secondsToHHMMSS(region.start)}</TableCell>
+                  <TableCell>{secondsToHHMMSS(region.end)}</TableCell>
                   <TableCell>{typeof region.content == "string" ? region.content : region.content.innerText}</TableCell>
                   <TableCell>
                     <Tooltip title="Load"><IconButton size="large" onClick={() => loadSnippet(region.id)}><ArrowCircleUp fontSize="large" color="secondary" /></IconButton></Tooltip>

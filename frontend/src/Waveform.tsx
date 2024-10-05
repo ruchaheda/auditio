@@ -17,11 +17,15 @@ type WaveformProps = {
     regionRef: any,
     setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
     audioFile: string | null,
+    secondsToHHMMSS: (seconds:number) => string,
 };
 
-const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, setRenderTrigger, audioFile}) => {
+const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, setRenderTrigger, audioFile, secondsToHHMMSS}) => {
     const [loopAudio, setLoopAudio] = useState<boolean>(true);
     const loopAudioRef = useRef<boolean>(true);
+    const [duration, setDuration] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [playPause, setPlayPause] = useState(false);
 
     // Load the uploaded audio file into wavesurfer
     const loadAudio = (filename: string) => {
@@ -31,17 +35,17 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
         }
 
         // Create a timeline plugin instance with custom options
-        const topTimeline = TimelinePlugin.create({
-            container: '#waveform',
-            height: 20,
-            timeInterval: 1,
-            primaryLabelInterval: 5,
-            secondaryLabelOpacity: 0,
-            style: {
-                fontSize: '20px',
-                color: '#2D5B88',
-            },
-        })
+        // const topTimeline = TimelinePlugin.create({
+        //     container: '#waveform',
+        //     height: 20,
+        //     timeInterval: 1,
+        //     primaryLabelInterval: 5,
+        //     secondaryLabelOpacity: 0,
+        //     style: {
+        //         fontSize: '20px',
+        //         color: '#2D5B88',
+        //     },
+        // })
 
         const hover = Hover.create({
             lineColor: '#ff0000',
@@ -57,14 +61,16 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
             container: '#waveform',
             waveColor: 'rgb(200, 0, 200)',
             progressColor: 'rgb(100, 0, 100)',
+            autoScroll: true,
+            autoCenter: true,    // Disable auto-centering
+            minPxPerSec: 20,      // Minimum pixels per second for the waveform
+            fillParent: false,
             height: 100,
             barWidth: 2,
             barGap: 1,
             barRadius: 2,
-            plugins: [topTimeline, hover, regionPlugin]
+            plugins: [hover, regionPlugin]
         });
-
-        console.log("active plugins, ", wavesurfer.getActivePlugins());
 
         wavesurferRef.current = wavesurfer;
 
@@ -72,57 +78,96 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
         wavesurfer.load(`http://localhost:5001/uploads/${filename}`);
 
         wavesurfer.on('ready' as any, () => {
-        console.log("waveform is ready!");
+            console.log("waveform is ready!");
+            setDuration(wavesurferRef.current.getDuration())
 
-        regionPlugin.enableDragSelection({
-            color: 'rgba(255, 0, 0, 0.3)',
-        });
+            regionPlugin.enableDragSelection({
+                color: 'rgba(255, 0, 0, 0.3)',
+            });
 
-        // Listening for when user seeks to a specific part on the waveform. 
-        wavesurfer.on('seeking' as any, (progress) => {
-            console.log('User is interacting with the waveform:', progress);
-        });
-    
-        // Listen for region creation
-        regionPlugin.on('region-created' as any, (region) => {
-            console.log("region-created! region: ", region);
-            
-            const regionName = region.content ? region.content : "New Region";
+            // Listening for when user seeks to a specific part on the waveform. 
+            wavesurfer.on('seeking' as any, (progress) => {
+                console.log('User is interacting with the waveform:', progress);
+                setCurrentTime(progress);
+            });
 
-            region.setOptions({
-                content: regionName,
-                contentEditable: true,
+            wavesurferRef.current.on('play' as any, () => {
+                setPlayPause(true);
             })
-            
-            regionRef.current = region;
 
-            regions.current = {
-                ...regions.current,
-                [region.id]: region
-            }
-            setRenderTrigger(prev => prev + 1);
-        });
+            wavesurferRef.current.on('pause' as any, () => {
+                setPlayPause(false);
+            })
+        
+            // Listen for region creation
+            regionPlugin.on('region-created' as any, (region) => {
+                console.log("region-created! region: ", region);
+                
+                const regionName = region.content ? region.content : "New Region";
 
-        regionPlugin.on('region-clicked' as any, (region, e) => {
-            e.stopPropagation(); // prevent triggering a click on the waveform
-            regionRef.current = region;
-            console.log('region-clicked! current region: ', regionRef.current);
-            regionRef.current.play();
-            setRenderTrigger(prev => prev + 1);
+                regionRef.current?.setOptions({
+                    color: 'rgba(0, 0, 0, 0.1)'
+                })
 
-            // TODO: BUG - figure out why clicking on a different region is not playing that new region. 
-        });
+                region.setOptions({
+                    content: regionName,
+                    contentEditable: true,
+                    color: 'rgba(255, 0, 0, 0.3)'
+                })
+                
+                regionRef.current = region;
 
-        regionPlugin.on('region-out' as any, (region) => {
-            if (loopAudioRef.current) {
-            region.play();
-            }
-        })
+                regions.current = {
+                    ...regions.current,
+                    [region.id]: region
+                }
+                setRenderTrigger(prev => prev + 1);
+            });
 
-        regionPlugin.on('region-updated' as any, (region) => {
-            regionRef.current = region;
-            setRenderTrigger(prev => prev + 1);
-        })
+            regionPlugin.on('region-clicked' as any, (region, e) => {
+                e.stopPropagation(); // prevent triggering a click on the waveform
+                
+                // regionRef.current.set rgba(0, 0, 0, 0.1), rgba(255, 0, 0, 0.3)
+                regionRef.current.setOptions({
+                    color: 'rgba(0, 0, 0, 0.1)'
+                })
+
+                regionRef.current = region;
+                regionRef.current.setOptions({
+                    color: 'rgba(255, 0, 0, 0.3)'
+                })
+                console.log('region-clicked! current region: ', regionRef.current);
+
+                if (loopAudioRef) {
+                    loopAudioRef.current = false;
+                    regionRef.current.play();
+                    loopAudioRef.current = true;
+                }
+                else {
+                    regionRef.current.play();
+                }
+                
+                setRenderTrigger(prev => prev + 1);
+            });
+
+            regionPlugin.on('region-out' as any, (region) => {
+
+                if (loopAudioRef.current && regionRef.current == region) {
+                    region.play();
+                }
+            })
+
+            regionPlugin.on('region-updated' as any, (region) => {
+                regionRef.current.setOptions({
+                    color: 'rgba(0, 0, 0, 0.1)'
+                })
+
+                regionRef.current = region;
+                regionRef.current.setOptions({
+                    color: 'rgba(255, 0, 0, 0.3)'
+                })
+                setRenderTrigger(prev => prev + 1);
+            })
         });
     };
 
@@ -132,7 +177,17 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
     }
     
     const handlePlayPause: React.MouseEventHandler<HTMLButtonElement> = () => {
-        wavesurferRef.current.playPause();
+
+        if (regionRef.current && 
+            loopAudioRef.current &&
+            !playPause &&
+            !(currentTime >= regionRef.current.start && currentTime <= regionRef.current.end)
+        ) {
+            regionRef.current.play();
+        }
+        else {
+            wavesurferRef.current.playPause();
+        }
     }
     
     const seek = (seconds: number) => {
@@ -151,7 +206,61 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
 
     return (
         <Box>
-            <Box width="100vw" id="waveform" />
+            <Box
+                sx={{ 
+                    width: '100vw',
+                    overflow: 'hidden',   // Prevent the outer box from scrolling
+                    position: 'relative', // Stable layout for the waveform
+                }}
+            >
+                <Box 
+                    id="waveform" 
+                    sx={{
+                        width: '100%',
+                        height: '150px',
+                        overflowX: 'auto',     // Enable horizontal scrolling within this container
+                        whiteSpace: 'nowrap',  // Prevent wrapping to enable horizontal scrolling
+                      }}
+                />
+                <Box
+                    sx={{
+                        display: 'flex',              // Use flexbox for row alignment
+                        justifyContent: 'space-between', // Ensure space between the center and right items
+                        alignItems: 'center',          // Vertically align items
+                        width: '100%',                 // Make sure the box takes up the full width
+                        paddingRight: '16px',          // Add some padding on the right for spacing
+                    }}
+                    >
+                    {wavesurferRef.current && (
+                        <>
+                        {/* Container for Start and End Time, centered */}
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                gap: '20px',                  // Space between Start and End Time
+                                justifyContent: 'center',     // Center items in this box
+                                flex: 1,                      // Make it take available space in the middle
+                                alignItems: 'center',
+                            }}
+                        >
+                            <Box><p><b>Current Active Region:</b></p></Box>
+                            <Box><p><b>Start Time:</b> {regionRef.current ? secondsToHHMMSS(regionRef.current.start) : ''}</p></Box>
+                            <Box><p><b>End Time:</b> {regionRef.current ? secondsToHHMMSS(regionRef.current.end) : ''}</p></Box>
+                        </Box>
+
+                        {/* Container for Total Duration aligned to the right */}
+                        <Box
+                            sx={{
+                            textAlign: 'right',           // Align Total Duration text to the right
+                            flex: 'none',                 // Ensure it doesn't stretch or grow
+                            }}
+                        >
+                            <p style={{ marginRight: '16px' }}><b>Total Duration:</b> {secondsToHHMMSS(duration)}</p>
+                        </Box>
+                        </>
+                    )}
+                </Box>
+            </Box>
 
             <Box
                 display="flex"

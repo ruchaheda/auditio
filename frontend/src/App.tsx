@@ -6,6 +6,7 @@ import {
   Button, 
   Toolbar, 
   Typography } from '@mui/material';
+import { openDB } from 'idb';
 import SnippetsView from './SnippetsView.tsx';
 import SnippetsActions from './SnippetsActions.tsx';
 import Waveform from './Waveform.tsx';
@@ -19,6 +20,18 @@ function App() {
   const regions = useRef<{[id: number]: any}>({});
   const wavesurferRef = useRef<WaveSurferInstance | null>(null);
   const regionRef = useRef<any>(null); // Reference for the waveform region
+  const [audioUrl, setAudioUrl] = useState<string>('');
+
+  const initDB = async () => {
+    return openDB('audio-db', 1, {
+      upgrade(db) {
+        // Create an object store for audio files
+        if (!db.objectStoreNames.contains('audioFiles')) {
+          db.createObjectStore('audioFiles', { keyPath: 'id', autoIncrement: true });
+        }
+      },
+    });
+  }
 
   // Handle trimming the audio
   const handleTrim = () => {
@@ -93,7 +106,7 @@ function App() {
     <Box>
       <AppBar position="static">
         <Toolbar>
-          <Typography variant="h5" component="div">Audio Looper & Trimmer</Typography>
+          <Typography variant="h5" component="div"><i>Auditio</i></Typography>
         </Toolbar>
       </AppBar>
 
@@ -109,6 +122,10 @@ function App() {
         <FileUpload 
           audioFile={audioFile}
           setAudioFile={setAudioFile}
+          initDB={initDB}
+          audioUrl={audioUrl}
+          setAudioUrl={setAudioUrl}
+          setRenderTrigger={setRenderTrigger}
         />
         
         <Waveform 
@@ -118,6 +135,7 @@ function App() {
           setRenderTrigger={setRenderTrigger}
           audioFile={audioFile}
           secondsToHHMMSS={secondsToHHMMSS}
+          audioUrl={audioUrl}
         />
 
         <SnippetsActions 

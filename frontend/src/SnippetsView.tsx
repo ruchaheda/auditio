@@ -37,7 +37,7 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
 
   const loadSnippet = (regionId: string) => {
 
-    // regionRef.current.set rgba(0, 0, 0, 0.1), rgba(255, 0, 0, 0.3)
+    // rgba(0, 0, 0, 0.1), rgba(255, 0, 0, 0.3)
     regionRef.current.setOptions({
         color: 'rgba(0, 0, 0, 0.1)'
     })

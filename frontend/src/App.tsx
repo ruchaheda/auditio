@@ -11,6 +11,7 @@ import SnippetsView from './SnippetsView.tsx';
 import SnippetsActions from './SnippetsActions.tsx';
 import Waveform from './Waveform.tsx';
 import FileUpload from './FileUpload.tsx'
+import TrimFile from './TrimFile.tsx';
 
 type WaveSurferInstance = ReturnType<typeof WaveSurfer.create>;
 
@@ -32,34 +33,6 @@ function App() {
       },
     });
   }
-
-  // Handle trimming the audio
-  const handleTrim = () => {
-    if (!audioFile) return;
-
-    const trimData = {
-      filename: audioFile,
-      start: regionRef.current.start,
-      end: regionRef.current.end,
-      output_name: regionRef.current.content?.innerText,
-    };
-
-    fetch('http://localhost:5001/trim', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(trimData),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        const downloadLink = document.createElement('a');
-        downloadLink.href = `http://localhost:5001/download/${data.output_filename}`;
-        downloadLink.download = data.output_filename;
-        downloadLink.target = '_blank'; // Opens the file in a new window/tab
-        downloadLink.click();
-      });
-  };
 
   const secondsToHHMMSS = (seconds: number) => {
     // Calculate hours, minutes, and seconds
@@ -148,7 +121,13 @@ function App() {
           HHMMSSToSeconds={HHMMSSToSeconds}
         />
 
-        <Button variant="contained" onClick={handleTrim} color="primary">Trim & Download</Button>
+        <TrimFile 
+          audioFile={audioFile}
+          audioUrl={audioUrl}
+          regionRef={regionRef}
+        />
+
+        {/* <Button variant="contained" onClick={handleTrim} color="primary">Trim & Download</Button> */}
 
         <SnippetsView 
           audioFile={audioFile}

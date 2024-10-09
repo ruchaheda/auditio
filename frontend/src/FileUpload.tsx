@@ -65,6 +65,7 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
         const reader = new FileReader();
         reader.onload = async (event) => {
             const audioData = event.target?.result;
+            console.log(audioData);
 
             // Store the file in IndexedDB
             const transaction = db.transaction('audioFiles', 'readwrite');

@@ -18,14 +18,29 @@ type WaveformProps = {
     setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
     audioFile: string | null,
     secondsToHHMMSS: (seconds:number) => string,
+    audioUrl: string,
 };
 
-const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, setRenderTrigger, audioFile, secondsToHHMMSS}) => {
+const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, setRenderTrigger, audioFile, secondsToHHMMSS, audioUrl}) => {
     const [loopAudio, setLoopAudio] = useState<boolean>(true);
     const loopAudioRef = useRef<boolean>(true);
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const [playPause, setPlayPause] = useState(false);
+    const BASE64_MARKER = ';base64,';
+
+    const convertDataURIToBinary = (dataURI: string) => {
+        const base64Index = dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+        const base64 = dataURI.substring(base64Index);
+        const raw = window.atob(base64);
+        const rawLength = raw.length;
+        const array = new Uint8Array(new ArrayBuffer(rawLength));
+      
+        for(let i = 0; i < rawLength; i++) {
+          array[i] = raw.charCodeAt(i);
+        }
+        return array;
+    }
 
     // Load the uploaded audio file into wavesurfer
     const loadAudio = (filename: string) => {
@@ -64,7 +79,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
             autoScroll: true,
             autoCenter: true,    // Disable auto-centering
             minPxPerSec: 20,      // Minimum pixels per second for the waveform
-            fillParent: false,
+            fillParent: true,
             height: 100,
             barWidth: 2,
             barGap: 1,
@@ -75,7 +90,12 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
         wavesurferRef.current = wavesurfer;
 
         // Load audio file from the server
-        wavesurfer.load(`http://localhost:5001/uploads/${filename}`);
+        // wavesurfer.load(`http://localhost:5001/uploads/${filename}`);
+
+        // filename: audioUrl
+        // console.log("audioUrl: ", audioUrl);
+        const binary = convertDataURIToBinary(audioUrl);
+        wavesurfer.loadBlob(new Blob([binary], {type : 'audio/mpeg'}));
 
         wavesurfer.on('ready' as any, () => {
             console.log("waveform is ready!");
@@ -199,10 +219,19 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
     }
 
     useEffect(() => {
-        if (audioFile) {
-            loadAudio(audioFile);
+        // console.log("useEffect in Waveform.tsx called! audioFile: ", audioFile);
+        // console.log("useEffect audioFile: ", audioFile);
+        // console.log("useEffect audioUrl: ", audioUrl);
+        // console.log("wavesurferRef.current: ", wavesurferRef.current);
+        if (audioUrl) {
+            loadAudio(audioUrl);
         }
-    }, [audioFile]);
+        
+        if (!audioUrl && wavesurferRef.current) {
+            // console.log("ELSE: wavesurferRef.current: ", wavesurferRef.current);
+            wavesurferRef.current.empty();
+        }
+    }, [audioFile, audioUrl]);
 
     return (
         <Box>

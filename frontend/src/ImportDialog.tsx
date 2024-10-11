@@ -22,9 +22,10 @@ type ImportDialogProps = {
     regionRef: any,
     openImport: boolean,
     setOpenImport: React.Dispatch<React.SetStateAction<boolean>>,
+    HHMMSSToSeconds: (timestamp: string) => number,
 }
 
-const ImportDialog: React.FC<ImportDialogProps> = ({audioFile, regions, wavesurferRef, regionRef, openImport, setOpenImport}) => {
+const ImportDialog: React.FC<ImportDialogProps> = ({audioFile, regions, wavesurferRef, regionRef, openImport, setOpenImport, HHMMSSToSeconds}) => {
 
     const [importText, setImportText] = useState('');
 
@@ -44,22 +45,27 @@ const ImportDialog: React.FC<ImportDialogProps> = ({audioFile, regions, wavesurf
             if (line != "") {
                 const values = line.split(',');
 
-                const newRegionStartTime = Number(values[0]);
-                const newRegionEndTime = Number(values[1]);
+                const startTimeStamp = HHMMSSToSeconds(values[0]);
+                const endTimeStamp = HHMMSSToSeconds(values[1]);
+
+                const newRegionStartTime = Number(startTimeStamp);
+                const newRegionEndTime = Number(endTimeStamp);
                 const newRegionName = values[2];
 
-                const newRegion = (wavesurferRef.current?.getActivePlugins()[2] as RegionsPlugin).addRegion({
-                    start: newRegionStartTime,
-                    end: newRegionEndTime,
-                    content: newRegionName,
-                    contentEditable: true,
-                    drag: true,
-                    resize: true,
-                });
+                if (wavesurferRef.current) {
+                    const newRegion = (wavesurferRef.current.getActivePlugins()[1] as RegionsPlugin).addRegion({
+                        start: newRegionStartTime,
+                        end: newRegionEndTime,
+                        content: newRegionName,
+                        contentEditable: true,
+                        drag: true,
+                        resize: true,
+                    });
+                    
+                    regions.current[newRegion.id] = newRegion;
 
-                regions.current[newRegion.id] = newRegion;
-
-                regionRef.current = newRegion;
+                    regionRef.current = newRegion;
+                }
             }
         }
 

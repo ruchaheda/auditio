@@ -18,13 +18,12 @@ type WaveformProps = {
     regionRef: any,
     initDB: () => Promise<IDBPDatabase>,
     setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
-    audioFile: string | null,
     audioFileId: number,
     secondsToHHMMSS: (seconds:number) => string,
     audioUrl: string,
 };
 
-const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, initDB, setRenderTrigger, audioFile, audioFileId, secondsToHHMMSS, audioUrl}) => {
+const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, initDB, setRenderTrigger, audioFileId, secondsToHHMMSS, audioUrl}) => {
     const [loopAudio, setLoopAudio] = useState<boolean>(true);
     const loopAudioRef = useRef<boolean>(true);
     const [duration, setDuration] = useState(0);
@@ -46,7 +45,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
     }
 
     // Load the uploaded audio file into wavesurfer
-    const loadAudio = (filename: string) => {
+    const loadAudio = () => {
         // If a WaveSurfer instance already exists, destroy it before creating a new one
         if (wavesurferRef.current) {
             wavesurferRef.current.destroy();
@@ -95,7 +94,6 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
         // Load audio file from the server
         // wavesurfer.load(`http://localhost:5001/uploads/${filename}`);
 
-        // filename: audioUrl
         const binary = convertDataURIToBinary(audioUrl);
         wavesurfer.loadBlob(new Blob([binary], {type : 'audio/mpeg'}));
 
@@ -129,11 +127,8 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                 const regionName = region.content ? (region.content.innerText ? region.content.innerText : region.content) : "New Region";
 
                 // mark current region as non-active before switching over to newly created region
-
                 if (regionRef.current) {
-                    // markCurrentRegionNonActive(audioFileId, regionRef.current.id);
                     toggleRegionIsActive(audioFileId, regionRef.current.id, false);
-                    // addOrUpdateRegionInDB(audioFileId, regionRef.current.id, regionRef.current.start, regionRef.current.end, regionRef.current.content, false);
                 }
 
                 // switch over to newly created region
@@ -153,7 +148,6 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                     ...regions.current,
                     [region.id]: region
                 }
-                console.log("region-created regions.current: ", regions.current);
 
                 setRenderTrigger(prev => prev + 1);
             });
@@ -161,7 +155,6 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
             regionPlugin.on('region-clicked' as any, (region, e) => {
                 e.stopPropagation(); // prevent triggering a click on the waveform
 
-                // TODO: update indexedDB database for updated region
                 toggleRegionIsActive(audioFileId, regionRef.current.id, false);
                 regionRef.current.setOptions({
                     color: 'rgba(0, 0, 0, 0.1)'
@@ -172,7 +165,6 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                 regionRef.current.setOptions({
                     color: 'rgba(255, 0, 0, 0.3)'
                 })
-                console.log('region-clicked! current region: ', regionRef.current);
 
                 if (loopAudioRef) {
                     loopAudioRef.current = false;
@@ -194,6 +186,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
             })
 
             regionPlugin.on('region-updated' as any, (region) => {
+                console.log('region-updated! region: ', region);
 
                 // TODO: update indexedDB database for updated region
                 toggleRegionIsActive(audioFileId, regionRef.current.id, false);
@@ -202,6 +195,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                 })
 
                 toggleRegionIsActive(audioFileId, region.id, true);
+                addOrUpdateRegionInDB(audioFileId, region.id, region.start, region.end, region.content?.innerText, true);
                 regionRef.current = region;
                 regionRef.current.setOptions({
                     color: 'rgba(255, 0, 0, 0.3)'
@@ -219,18 +213,15 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
             regions.current = {};
             regionRef.current = null;
             let activeSnippet: any = null;
+            let regionColor = 'rgba(0, 0, 0, 0.1)';
 
             snippets?.forEach((snippet) => {
                 const startTime = snippet.startTime;
                 const endTime = snippet.endTime;
                 if (snippet.isActive) {
-                    const regionColor = 'rgba(255, 0, 0, 0.3)';
+                    regionColor = 'rgba(255, 0, 0, 0.3)';
                     activeSnippet = snippet;
                 }
-                else {
-                    const regionColor = 'rgba(0, 0, 0, 0.1)'
-                }
-                const regionColor = snippet.isActive ? 'rgba(255, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)';
 
                 const newRegion = regionsPlugin.addRegion({
                     id: snippet.regionId,
@@ -303,7 +294,6 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
     }
 
     const toggleRegionIsActive = async (audioFileId: number, regionId: string, isActive: boolean) => {
-        // console.log("toggleRegionIsActive called!");
         if (!regionRef.current || !regionId) {
             return;
         }
@@ -314,8 +304,6 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
     
         const index = snippetStore.index('region_audio');
         const snippet = await index.get([regionId, audioFileId]);
-
-        // console.log("toggleRegionIsActive - snippet to toggle: ", snippet);
     
         if (snippet) {
             snippet.isActive = isActive;
@@ -334,8 +322,6 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
             color: 'rgba(0, 0, 0, 0.1)'
           })
         }
-
-        // console.log("toggleRegionIsActive - regions.current: ", regions.current);
     }
 
     const toggleLooping = () => {
@@ -367,14 +353,14 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
 
     useEffect(() => {
         if (audioFileId) {
-            loadAudio(audioUrl);
+            loadAudio();
             loadRegionsForFile(audioFileId);
         }
         
         if (!audioFileId && wavesurferRef.current) {
             wavesurferRef.current.empty();
         }
-    }, [audioFileId, audioFile, audioUrl]);
+    }, [audioFileId, audioUrl]);
 
     return (
         <Box>

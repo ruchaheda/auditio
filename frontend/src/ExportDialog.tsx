@@ -17,9 +17,10 @@ type ExportDialogProps = {
     regions: any,
     openExport: boolean,
     setOpenExport: React.Dispatch<React.SetStateAction<boolean>>,
+    secondsToHHMMSS: (seconds:number) => string,
 }
 
-const ExportDialog: React.FC<ExportDialogProps> = ({regions, openExport, setOpenExport}) => {
+const ExportDialog: React.FC<ExportDialogProps> = ({regions, openExport, setOpenExport, secondsToHHMMSS}) => {
 
     const [exportText, setExportText] = useState('');
     const [copied, setCopied] = useState(false);
@@ -36,7 +37,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({regions, openExport, setOpen
         let currentExportText = '';
 
         Object.entries(regionsToLoop).forEach(([id, region]) => {
-            currentExportText += region.start + ", " + region.end + ", " + region.content?.innerText + "\n";
+            currentExportText += secondsToHHMMSS(region.start) + ", " + secondsToHHMMSS(region.end) + ", " + region.content?.innerText + "\n";
         });
 
         setExportText(currentExportText.replace(/\n$/, ''));

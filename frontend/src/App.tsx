@@ -29,11 +29,11 @@ function App() {
       return dbInstance;
     }
 
-    dbInstance = await openDB('audio-db', 2, {
+    dbInstance = await openDB('audio-db', 1, {
       upgrade(db) {
         // Create an object store for audio files
         if (!db.objectStoreNames.contains('audioFiles')) {
-          db.createObjectStore('audioFiles', { keyPath: 'id', autoIncrement: true });
+          const audioFileStore = db.createObjectStore('audioFiles', { keyPath: 'id', autoIncrement: true });
         }
 
         // Create an object store for snippets (related to audioFiles by audioFileId)
@@ -117,10 +117,11 @@ function App() {
           audioFile={audioFile}
           setAudioFile={setAudioFile}
           initDB={initDB}
-          audioUrl={audioUrl}
           setAudioUrl={setAudioUrl}
           audioFileId={audioFileId}
           setAudioFileId={setAudioFileId}
+          renderTrigger={renderTrigger}
+          setRenderTrigger={setRenderTrigger}
         />
         
         <Waveform 
@@ -129,7 +130,6 @@ function App() {
           regionRef={regionRef}
           initDB={initDB}
           setRenderTrigger={setRenderTrigger}
-          audioFile={audioFile}
           audioFileId={audioFileId}
           secondsToHHMMSS={secondsToHHMMSS}
           audioUrl={audioUrl}
@@ -143,6 +143,8 @@ function App() {
           setRenderTrigger={setRenderTrigger}
           secondsToHHMMSS={secondsToHHMMSS}
           HHMMSSToSeconds={HHMMSSToSeconds}
+          audioFileId={audioFileId}
+          initDB={initDB}
         />
 
         <TrimFile 
@@ -161,6 +163,7 @@ function App() {
           initDB={initDB}
           setRenderTrigger={setRenderTrigger}
           secondsToHHMMSS={secondsToHHMMSS}
+          HHMMSSToSeconds={HHMMSSToSeconds}
         />
       </Box>
     </Box>

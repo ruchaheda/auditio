@@ -2,27 +2,30 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
     Box,
     Button,
+    IconButton,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
+    Tooltip,
 } from '@mui/material';
-import { CloudUpload } from '@mui/icons-material';
+import { ArrowCircleUp, CloudUpload, Delete } from '@mui/icons-material';
 import { IDBPDatabase } from 'idb';
 
 type FileUploadProps = {
     audioFile: string | null,
     setAudioFile: React.Dispatch<React.SetStateAction<string | null>>,
     initDB: () => Promise<IDBPDatabase>,
-    audioUrl: string,
     setAudioUrl: React.Dispatch<React.SetStateAction<string>>,
     audioFileId: number,
     setAudioFileId: React.Dispatch<React.SetStateAction<number>>,
+    renderTrigger: number,
+    setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
 }
 
-const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB, audioUrl, setAudioUrl, audioFileId, setAudioFileId}) => {
+const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB, setAudioUrl, audioFileId, setAudioFileId, renderTrigger, setRenderTrigger}) => {
 
     const [message, setMessage] = useState('');
     const allFilesRef = useRef<any>(null);
@@ -56,6 +59,26 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
         setAllFiles(allFiles);
     }
 
+    const toggleAudioFileIsActive = async (audioFileId: number, isActive: boolean) => {
+        const db = await initDB();
+        const transaction = db.transaction('audioFiles', 'readwrite');
+        const store = transaction.objectStore('audioFiles');
+
+        const audioFile = await store.get(audioFileId);
+
+        if (audioFile) {
+            audioFile.isActive = isActive;
+            store.put(audioFile);
+            transaction.commit();
+
+            if (isActive) {
+                setAudioFileId(audioFile.id);
+                setAudioFile(audioFile.fileName);
+                setAudioUrl(audioFile.data);
+            }
+        }
+    }
+
     const handleFileUploadIndexedDB = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
         const file = e.target.files?.[0];
@@ -76,16 +99,21 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
             const existingFile = allFiles.find(f => f.fileName === file.name);
 
             if (existingFile) {
+                if (existingFile.id != audioFileId) {
+                    toggleAudioFileIsActive(audioFileId, false);
+                    toggleAudioFileIsActive(existingFile.id, true);
+                }
+
                 setMessage('Audio file already exists in the database!');
-                setAudioFile(existingFile.fileName);
-                setAudioUrl(existingFile.data);
-                setAudioFileId(existingFile.id);
             }
             else {
+                toggleAudioFileIsActive(audioFileId, false);
+
                 const newFileId = await store.add({
                     fileName: file.name,
                     data: audioData,
                     uploadTime: (new Date).getTime(),
+                    isActive: true,
                 });
 
                 setMessage('Audio file uploaded and stored successfully!');
@@ -108,12 +136,15 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
         allFilesRef.current = allFiles;
 
         if (allFiles.length > 0) {
-            const lastFile = allFiles[allFiles.length - 1]; // Get the last uploaded file
-
-            setAudioUrl(lastFile.data); // Set the audio URL for playback
-            setAudioFile(lastFile.fileName); // set audio file name
-            setAudioFileId(lastFile.id);
-            setMessage('Last audio file retrieved.');
+            allFiles.forEach((file) => {
+                if (file.isActive) {
+                    setAudioUrl(file.data); // Set the audio URL for playback
+                    setAudioFile(file.fileName); // set audio file name
+                    setAudioFileId(file.id);
+                    setMessage('Last audio file retrieved.');
+                }
+            })
+            // const lastFile = allFiles[allFiles.length - 1]; // Get the last uploaded file
         } else {
             setMessage('No audio files stored.');
         }
@@ -169,20 +200,50 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
             const fileAge = now - file.uploadTime;
             if (fileAge > sevenDaysInMs) {
                 deleteSnippetsForAudioFile(file.id);
+
+                if (audioFileId == file.id) {
+                    setAudioFileId(0);
+                    setAudioUrl('');
+                    setAudioFile('');
+                }
+
                 store.delete(file.id); // Delete the entry by its id
             }
         });
         fetchAllFiles();
     }
 
+    const loadFile = (fileId: number) => {
+        toggleAudioFileIsActive(audioFileId, false);
+        toggleAudioFileIsActive(fileId, true);
+    }
+
+    const deleteFile = async (fileId: number) => {
+        console.log("deleteFile called! fileId: ", fileId);
+
+        const db = await initDB();
+        const transaction = db.transaction('audioFiles', 'readwrite');
+        const store = transaction.objectStore('audioFiles');
+
+        const file = await store.get(fileId);
+        console.log("deleteFile - file: ", file);
+        if (audioFileId == file.id) {
+            setAudioFileId(0);
+            setAudioUrl('');
+            setAudioFile('');
+        }
+
+        deleteSnippetsForAudioFile(file.id);
+        store.delete(file.id);
+
+        setRenderTrigger(prev => prev + 1);
+    }
+
     useEffect(() => {
         fetchAllFiles();
         deleteOldEntries();
         retrieveAudio();
-    }, []);
-
-    useEffect(() => {
-    }, [allFiles]);
+    }, [renderTrigger]);
 
     return (
         <Box
@@ -220,9 +281,9 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
                 <p><b>Current file:</b> {audioFile}</p>
                 )}
 
-                { message && (
+                {/* { message && (
                     <p>{message}</p>
-                )}
+                )} */}
             </Box>
             <Box>
                 <TableContainer>
@@ -232,6 +293,7 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
                                 <TableCell><b>File Name</b></TableCell>
                                 {/* TODO: <TableCell>Duration</TableCell> */}
                                 <TableCell><b>Uploaded</b></TableCell>
+                                <TableCell><b>Actions</b></TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -240,6 +302,10 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
                                     <TableRow key={index}>
                                         <TableCell>{file.fileName}</TableCell>
                                         <TableCell>{(new Date(file.uploadTime)).toLocaleString()}</TableCell>
+                                        <TableCell>
+                                            <Tooltip title="Load"><IconButton size="large" onClick={() => loadFile(file.id)}><ArrowCircleUp fontSize="large" color="secondary" /></IconButton></Tooltip>
+                                            <Tooltip title="Delete"><IconButton size="large" onClick={() => deleteFile(file.id)}><Delete fontSize="large" sx={{ color: "#f44336" }} /></IconButton></Tooltip>
+                                        </TableCell>
                                     </TableRow>
                                 )
                             })}

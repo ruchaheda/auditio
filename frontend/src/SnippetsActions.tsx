@@ -6,6 +6,7 @@ import {
     Button,
     TextField,
 } from '@mui/material';
+import { IDBPDatabase } from 'idb';
 
 type SnippetActionsProps = {
     regions: any,
@@ -15,9 +16,11 @@ type SnippetActionsProps = {
     setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
     secondsToHHMMSS: (seconds:number) => string,
     HHMMSSToSeconds: (timestamp: string) => number,
+    audioFileId: number,
+    initDB: () => Promise<IDBPDatabase>,
 }
 
-const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef, regionRef, renderTrigger, setRenderTrigger, secondsToHHMMSS, HHMMSSToSeconds}) => {
+const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef, regionRef, renderTrigger, setRenderTrigger, secondsToHHMMSS, HHMMSSToSeconds, audioFileId, initDB}) => {
 
     const [regionId, setRegionId] = useState<string>('');
     const [activeRegionStartTime, setActiveRegionStartTime] = useState<number>(0);  // State for start time
@@ -68,6 +71,10 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
         }
     }, [renderTrigger, regionRef.current, regionRef.current?.id, regionRef.current?.start, regionRef.current?.end]);
 
+    useEffect(() => {
+      setRegionId('');
+    }, [enteredRegionStartTime, enteredRegionEndTime, regionName]);
+
     const createRegionManually = () => {
       // if no pre-existing region
 
@@ -75,8 +82,6 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
       const endTime = HHMMSSToSeconds(enteredRegionEndTime);
       const newRegionName = regionName ? regionName : "New Region";
       let currentRegionId = regionId;
-
-      // printDebugStatements("createRegionManually", "right before creating new region with no regionId");
 
       if (regionId == '' && wavesurferRef.current) {
         const newRegion = (wavesurferRef.current.getActivePlugins()[1] as RegionsPlugin).addRegion({
@@ -93,7 +98,8 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
       }
       else {
         const regionToUpdate = regions.current[regionId];
-        if (regionRef.current) {
+        if (regionRef.current && regionRef.current.id != regionToUpdate.id) {
+          toggleRegionIsActive(audioFileId, regionRef.current.id, false);
           regionRef.current.setOptions({
             color: 'rgba(0, 0, 0, 0.1)'
           })
@@ -103,6 +109,7 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
           start: startTime,
           end: endTime,
           content: regionName,
+          color: 'rgba(255, 0, 0, 0.3)'
         })
 
         regionRef.current = regionToUpdate;
@@ -110,6 +117,37 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
   
       setRenderTrigger(prev => prev + 1);
      };
+
+     const toggleRegionIsActive = async (audioFileId: number, regionId: string, isActive: boolean) => {
+      if (!regionRef.current || !regionId) {
+          return;
+      }
+  
+      const db = await initDB();
+      const transaction = db.transaction('snippets', 'readwrite');
+      const snippetStore = transaction.objectStore('snippets');
+  
+      const index = snippetStore.index('region_audio');
+      const snippet = await index.get([regionId, audioFileId]);
+  
+      if (snippet) {
+          snippet.isActive = isActive;
+          snippetStore.put(snippet);
+          transaction.commit();
+      }
+  
+      if (isActive) {
+        regionRef.current = regions.current[regionId];
+        regions.current[regionId].setOptions({
+          color: 'rgba(255, 0, 0, 0.3)'
+        });
+      }
+      else {
+        regions.current[regionId].setOptions({
+          color: 'rgba(0, 0, 0, 0.1)'
+        })
+      }
+  }
 
     const printDebugStatements = (functionName: string, note: string) => {
       console.log("functionName: " + functionName + "\n");
@@ -132,7 +170,7 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
           gap="20px"
           justifyContent="center"
         >
-          <TextField 
+          {/* <TextField 
             id="regionId"
             label="Region ID"
             variant="filled"
@@ -143,7 +181,7 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
                 readOnly: true,
               },
             }}
-          />
+          /> */}
 
           <TextField 
             id="regionName"

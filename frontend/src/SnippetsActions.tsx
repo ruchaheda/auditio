@@ -4,8 +4,11 @@ import RegionsPlugin from 'wavesurfer.js/plugins/regions';
 import { 
     Box,
     Button,
+    IconButton,
     TextField,
+    Tooltip,
 } from '@mui/material';
+import { Clear } from '@mui/icons-material';
 import { IDBPDatabase } from 'idb';
 
 type SnippetActionsProps = {
@@ -35,13 +38,11 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
     // Manually update the start time
     const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setEnteredRegionStartTime(e.target.value);
-        setRegionId('');
     };
 
     // Manually update the end time
     const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setEnteredRegionEndTime(e.target.value);
-        setRegionId('');
     };
 
     const updateRegion = (regionIdToUpdate: string, newStart: number, newEnd: number, name?: string) => {
@@ -62,18 +63,12 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
     };
 
     useEffect(() => {
+        printDebugStatements("useEffect in SnippetActions.tsx", "");
 
         if (regionRef.current) {
             updateRegion(regionRef.current.id, regionRef.current.start, regionRef.current.end, regionRef.current.content?.innerText);
         }
-        else {
-            updateRegion('', 0, 0, '');
-        }
     }, [renderTrigger, regionRef.current, regionRef.current?.id, regionRef.current?.start, regionRef.current?.end]);
-
-    useEffect(() => {
-      setRegionId('');
-    }, [enteredRegionStartTime, enteredRegionEndTime, regionName]);
 
     const createRegionManually = () => {
       // if no pre-existing region
@@ -148,13 +143,20 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
         })
       }
   }
+  
+  const clearSelection = () => {
+    setRegionId('');
+    setRegionName('');
+    setEnteredRegionStartTime('0:00');
+    setEnteredRegionEndTime('0:00');
+  }
 
     const printDebugStatements = (functionName: string, note: string) => {
       console.log("functionName: " + functionName + "\n");
       console.log("note: " + note + "\n");
       console.log("regions: ", regions.current);
-      console.log("wavesurferRef.current: ", wavesurferRef.current);
-      console.log("wavesurferRef.current.getActivePlugins: ", wavesurferRef.current.getActivePlugins());
+      // console.log("wavesurferRef.current: ", wavesurferRef.current);
+      // console.log("wavesurferRef.current.getActivePlugins: ", wavesurferRef.current.getActivePlugins());
       console.log("currentRegionStarttime: ", activeRegionStartTime);
       console.log("currentRegionEndTime: ", activeRegionEndTime);
       console.log("regionId: ", regionId);
@@ -183,6 +185,15 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
             }}
           /> */}
 
+            <Box
+              alignContent="center"
+            >
+              { regionId ? 
+                (<b>Existing Snippet:</b>) : 
+                (<b>New Snippet: </b>)
+              }
+            </Box>
+
           <TextField 
             id="regionName"
             label="Region Name"
@@ -209,7 +220,15 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
             onChange={handleEndTimeChange}
           />
 
-          <Button variant="outlined" onClick={createRegionManually} color="secondary">Create/Update Snippet</Button>
+          <Tooltip title="Clear"><IconButton size="large" onClick={() => clearSelection()}><Clear fontSize="large" color="secondary" /></IconButton></Tooltip>
+
+          <Button variant="outlined" onClick={createRegionManually} color="secondary">
+            { regionId ? 
+              (<p>Update Snippet</p>) :
+              (<p>Create Snippet</p>)
+            }
+            {/* Create/Update Snippet */}
+          </Button>
         </Box>
     );
 }

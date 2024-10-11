@@ -3,10 +3,9 @@ import WaveSurfer from 'wavesurfer.js';
 import { 
   AppBar, 
   Box, 
-  Button, 
   Toolbar, 
   Typography } from '@mui/material';
-import { openDB } from 'idb';
+import { openDB, IDBPDatabase } from 'idb';
 import SnippetsView from './SnippetsView.tsx';
 import SnippetsActions from './SnippetsActions.tsx';
 import Waveform from './Waveform.tsx';
@@ -14,8 +13,10 @@ import FileUpload from './FileUpload.tsx'
 import TrimFile from './TrimFile.tsx';
 
 type WaveSurferInstance = ReturnType<typeof WaveSurfer.create>;
+let dbInstance: IDBPDatabase | null = null;
 
 function App() {
+  const [audioFileId, setAudioFileId] = useState(0);
   const [audioFile, setAudioFile] = useState<string | null>(null);
   const [renderTrigger, setRenderTrigger] = useState(0);
   const regions = useRef<{[id: number]: any}>({});
@@ -24,14 +25,34 @@ function App() {
   const [audioUrl, setAudioUrl] = useState<string>('');
 
   const initDB = async () => {
-    return openDB('audio-db', 1, {
+    if (dbInstance) {
+      return dbInstance;
+    }
+
+    dbInstance = await openDB('audio-db', 2, {
       upgrade(db) {
         // Create an object store for audio files
         if (!db.objectStoreNames.contains('audioFiles')) {
           db.createObjectStore('audioFiles', { keyPath: 'id', autoIncrement: true });
         }
+
+        // Create an object store for snippets (related to audioFiles by audioFileId)
+        if (!db.objectStoreNames.contains('snippets')) {
+          const snippetStore = db.createObjectStore('snippets', { keyPath: 'id', autoIncrement: true });
+          
+          // Add an index to reference the audio file's ID (foreign key-like relationship)
+          snippetStore.createIndex('audioFileId', 'audioFileId', { unique: false });
+
+          // Add an index to reference the regionId
+          snippetStore.createIndex('regionId', 'regionId', { unique: false });
+
+          // Create a compound index to allow searching by regionId and audioFileId together
+          snippetStore.createIndex('region_audio', ['regionId', 'audioFileId'], { unique: true });
+        }
       },
     });
+
+    return dbInstance;
   }
 
   const secondsToHHMMSS = (seconds: number) => {
@@ -98,15 +119,18 @@ function App() {
           initDB={initDB}
           audioUrl={audioUrl}
           setAudioUrl={setAudioUrl}
-          setRenderTrigger={setRenderTrigger}
+          audioFileId={audioFileId}
+          setAudioFileId={setAudioFileId}
         />
         
         <Waveform 
           regions={regions}
           wavesurferRef={wavesurferRef}
           regionRef={regionRef}
+          initDB={initDB}
           setRenderTrigger={setRenderTrigger}
           audioFile={audioFile}
+          audioFileId={audioFileId}
           secondsToHHMMSS={secondsToHHMMSS}
           audioUrl={audioUrl}
         />
@@ -127,14 +151,14 @@ function App() {
           regionRef={regionRef}
         />
 
-        {/* <Button variant="contained" onClick={handleTrim} color="primary">Trim & Download</Button> */}
-
         <SnippetsView 
           audioFile={audioFile}
           regions={regions} 
           wavesurferRef={wavesurferRef}
           regionRef={regionRef}
-          renderTrigger={renderTrigger} 
+          renderTrigger={renderTrigger}
+          audioFileId={audioFileId}
+          initDB={initDB}
           setRenderTrigger={setRenderTrigger}
           secondsToHHMMSS={secondsToHHMMSS}
         />

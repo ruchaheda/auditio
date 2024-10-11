@@ -25,7 +25,6 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
     const [enteredRegionStartTime, setEnteredRegionStartTime] = useState<string>('');
     const [enteredRegionEndTime, setEnteredRegionEndTime] = useState<string>('');
     const [regionName, setRegionName] = useState<string>('');
-    const [error, setError] = useState(false);
 
     // Regular expression to match HH:MM:SS or MM:SS
     const timeRegex = /^(\d{2}):([0-5]\d):([0-5]\d)$|^([0-5]?\d):([0-5]\d)$/;
@@ -42,9 +41,9 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
         setRegionId('');
     };
 
-    const updateRegion = (newStart: number, newEnd: number, name?: string) => {
+    const updateRegion = (regionIdToUpdate: string, newStart: number, newEnd: number, name?: string) => {
       if (regionRef.current) {
-        setRegionId(regionRef.current.id);
+        setRegionId(regionIdToUpdate);
       }
       else {
         setRegionId('');
@@ -56,49 +55,53 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
       setEnteredRegionStartTime(secondsToHHMMSS(newStart));
       setEnteredRegionEndTime(secondsToHHMMSS(newEnd));
 
-      if (name) {
-        setRegionName(name);
-      }
+      name ? setRegionName(name) : setRegionName('');
     };
 
     useEffect(() => {
+
         if (regionRef.current) {
-            updateRegion(regionRef.current.start, regionRef.current.end, regionRef.current.content?.innerText);
+            updateRegion(regionRef.current.id, regionRef.current.start, regionRef.current.end, regionRef.current.content?.innerText);
         }
         else {
-            updateRegion(0, 0, '');
+            updateRegion('', 0, 0, '');
         }
     }, [renderTrigger, regionRef.current, regionRef.current?.id, regionRef.current?.start, regionRef.current?.end]);
 
     const createRegionManually = () => {
       // if no pre-existing region
 
+      const startTime = HHMMSSToSeconds(enteredRegionStartTime);
+      const endTime = HHMMSSToSeconds(enteredRegionEndTime);
       const newRegionName = regionName ? regionName : "New Region";
+      let currentRegionId = regionId;
 
       // printDebugStatements("createRegionManually", "right before creating new region with no regionId");
 
       if (regionId == '' && wavesurferRef.current) {
         const newRegion = (wavesurferRef.current.getActivePlugins()[1] as RegionsPlugin).addRegion({
-          start: HHMMSSToSeconds(enteredRegionStartTime),
-          end: HHMMSSToSeconds(enteredRegionEndTime),
+          start: startTime,
+          end: endTime,
           content: newRegionName,
           contentEditable: true,
           drag: true,
           resize: true,
         });
 
-        regionRef.current = newRegion
-          regions.current = {
-            ...regions.current,
-          [newRegion.id]: newRegion
-        }
+        currentRegionId = newRegion.id;
+        setRegionId(currentRegionId);
       }
       else {
         const regionToUpdate = regions.current[regionId];
+        if (regionRef.current) {
+          regionRef.current.setOptions({
+            color: 'rgba(0, 0, 0, 0.1)'
+          })
+        }
 
         regionToUpdate.setOptions({
-          start: HHMMSSToSeconds(enteredRegionStartTime),
-          end: HHMMSSToSeconds(enteredRegionEndTime),
+          start: startTime,
+          end: endTime,
           content: regionName,
         })
 
@@ -129,7 +132,7 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
           gap="20px"
           justifyContent="center"
         >
-          {/* <TextField 
+          <TextField 
             id="regionId"
             label="Region ID"
             variant="filled"
@@ -140,7 +143,7 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
                 readOnly: true,
               },
             }}
-          /> */}
+          />
 
           <TextField 
             id="regionName"

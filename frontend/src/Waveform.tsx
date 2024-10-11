@@ -10,18 +10,21 @@ import WaveSurfer from 'wavesurfer.js';
 import TimelinePlugin from 'wavesurfer.js/plugins/timeline';
 import Hover from 'wavesurfer.js/plugins/hover';
 import RegionsPlugin from 'wavesurfer.js/plugins/regions';
+import { IDBPDatabase } from 'idb';
 
 type WaveformProps = {
     regions: any,
     wavesurferRef: any,
     regionRef: any,
+    initDB: () => Promise<IDBPDatabase>,
     setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
     audioFile: string | null,
+    audioFileId: number,
     secondsToHHMMSS: (seconds:number) => string,
     audioUrl: string,
 };
 
-const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, setRenderTrigger, audioFile, secondsToHHMMSS, audioUrl}) => {
+const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, initDB, setRenderTrigger, audioFile, audioFileId, secondsToHHMMSS, audioUrl}) => {
     const [loopAudio, setLoopAudio] = useState<boolean>(true);
     const loopAudioRef = useRef<boolean>(true);
     const [duration, setDuration] = useState(0);
@@ -93,13 +96,13 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
         // wavesurfer.load(`http://localhost:5001/uploads/${filename}`);
 
         // filename: audioUrl
-        // console.log("audioUrl: ", audioUrl);
         const binary = convertDataURIToBinary(audioUrl);
         wavesurfer.loadBlob(new Blob([binary], {type : 'audio/mpeg'}));
 
         wavesurfer.on('ready' as any, () => {
             console.log("waveform is ready!");
-            setDuration(wavesurferRef.current.getDuration())
+            setDuration(wavesurferRef.current.getDuration());
+            loadRegionsForFile(audioFileId);
 
             regionPlugin.enableDragSelection({
                 color: 'rgba(255, 0, 0, 0.3)',
@@ -123,35 +126,48 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
             regionPlugin.on('region-created' as any, (region) => {
                 console.log("region-created! region: ", region);
                 
-                const regionName = region.content ? region.content : "New Region";
+                const regionName = region.content ? (region.content.innerText ? region.content.innerText : region.content) : "New Region";
 
-                regionRef.current?.setOptions({
-                    color: 'rgba(0, 0, 0, 0.1)'
-                })
+                // mark current region as non-active before switching over to newly created region
 
+                if (regionRef.current) {
+                    // markCurrentRegionNonActive(audioFileId, regionRef.current.id);
+                    toggleRegionIsActive(audioFileId, regionRef.current.id, false);
+                    // addOrUpdateRegionInDB(audioFileId, regionRef.current.id, regionRef.current.start, regionRef.current.end, regionRef.current.content, false);
+                }
+
+                // switch over to newly created region
+                regionRef.current = region;
+
+                // add or update region in DB
+                addOrUpdateRegionInDB(audioFileId, region.id, region.start, region.end, regionName, true);
+                toggleRegionIsActive(audioFileId, region.id, true);
+
+                // update current region's (in wavesurfer) name, contentEditable, and color
                 region.setOptions({
                     content: regionName,
                     contentEditable: true,
-                    color: 'rgba(255, 0, 0, 0.3)'
                 })
-                
-                regionRef.current = region;
 
                 regions.current = {
                     ...regions.current,
                     [region.id]: region
                 }
+                console.log("region-created regions.current: ", regions.current);
+
                 setRenderTrigger(prev => prev + 1);
             });
 
             regionPlugin.on('region-clicked' as any, (region, e) => {
                 e.stopPropagation(); // prevent triggering a click on the waveform
-                
-                // regionRef.current.set rgba(0, 0, 0, 0.1), rgba(255, 0, 0, 0.3)
+
+                // TODO: update indexedDB database for updated region
+                toggleRegionIsActive(audioFileId, regionRef.current.id, false);
                 regionRef.current.setOptions({
                     color: 'rgba(0, 0, 0, 0.1)'
                 })
 
+                toggleRegionIsActive(audioFileId, region.id, true);
                 regionRef.current = region;
                 regionRef.current.setOptions({
                     color: 'rgba(255, 0, 0, 0.3)'
@@ -178,10 +194,14 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
             })
 
             regionPlugin.on('region-updated' as any, (region) => {
+
+                // TODO: update indexedDB database for updated region
+                toggleRegionIsActive(audioFileId, regionRef.current.id, false);
                 regionRef.current.setOptions({
                     color: 'rgba(0, 0, 0, 0.1)'
                 })
 
+                toggleRegionIsActive(audioFileId, region.id, true);
                 regionRef.current = region;
                 regionRef.current.setOptions({
                     color: 'rgba(255, 0, 0, 0.3)'
@@ -190,6 +210,133 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
             })
         });
     };
+
+    const loadRegionsForFile = async (audioFileId: number) => {
+        if (wavesurferRef.current) {
+            const snippets = await fetchAllSnippetsForAudioFile(audioFileId);
+            const regionsPlugin = wavesurferRef.current.getActivePlugins()[1] as RegionsPlugin;
+            regionsPlugin.clearRegions();
+            regions.current = {};
+            regionRef.current = null;
+            let activeSnippet: any = null;
+
+            snippets?.forEach((snippet) => {
+                const startTime = snippet.startTime;
+                const endTime = snippet.endTime;
+                if (snippet.isActive) {
+                    const regionColor = 'rgba(255, 0, 0, 0.3)';
+                    activeSnippet = snippet;
+                }
+                else {
+                    const regionColor = 'rgba(0, 0, 0, 0.1)'
+                }
+                const regionColor = snippet.isActive ? 'rgba(255, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)';
+
+                const newRegion = regionsPlugin.addRegion({
+                    id: snippet.regionId,
+                    start: startTime,
+                    end: endTime,
+                    content: snippet.name,
+                    contentEditable: true,
+                    drag: true,
+                    resize: true,
+                    color: regionColor,
+                });
+            });
+
+            if (activeSnippet) {
+                toggleRegionIsActive(audioFileId, regionRef.current?.id, false);
+                toggleRegionIsActive(audioFileId, activeSnippet.regionId, true);
+                regionRef.current = regions.current[activeSnippet.regionId];
+            }
+
+            setRenderTrigger(prev => prev + 1);
+        }
+    }
+
+  const fetchAllSnippetsForAudioFile = async (audioFileId: number) => {
+    const db = await initDB();
+    const transaction = db.transaction('snippets', 'readonly');
+    const snippetStore = transaction.objectStore('snippets');
+
+    const index = snippetStore.index('audioFileId');
+    const snippets = await index.getAll(audioFileId);
+
+    return snippets;
+  }
+
+    const addOrUpdateRegionInDB = async (audioFileId: number, regionId: string, startTime: number, endTime: number, name: string, isActive: boolean) => {
+        const db = await initDB();
+        const transaction = db.transaction('snippets', 'readwrite');
+        const snippetStore = transaction.objectStore('snippets');
+
+        // Use the compound index to get the unique snippet for regionId and audioFileId
+        const index = snippetStore.index('region_audio');
+        const existingSnippet = await index.get([regionId, audioFileId]);
+        
+        if (existingSnippet) {
+            // Snippet exists, update the existing record
+            existingSnippet.startTime = startTime;
+            existingSnippet.endTime = endTime;
+            existingSnippet.name = name;
+            existingSnippet.isActive = isActive;
+
+            // Put the updated snippet back in the store
+            await snippetStore.put(existingSnippet);
+        }
+        else {
+            // Create a snippet object with the related audioFileId
+            const snippet = {
+                audioFileId,  // Reference to the audio file
+                regionId,     // region Id for wavesurfer
+                startTime,    // Snippet start time
+                endTime,      // Snippet end time
+                name,          // Snippet name
+                isActive,     // to set style color
+            };
+
+            // Add the snippet to the store
+            await snippetStore.add(snippet);
+        }
+    
+        transaction.commit();  // Ensure the transaction is committed
+    }
+
+    const toggleRegionIsActive = async (audioFileId: number, regionId: string, isActive: boolean) => {
+        // console.log("toggleRegionIsActive called!");
+        if (!regionRef.current || !regionId) {
+            return;
+        }
+    
+        const db = await initDB();
+        const transaction = db.transaction('snippets', 'readwrite');
+        const snippetStore = transaction.objectStore('snippets');
+    
+        const index = snippetStore.index('region_audio');
+        const snippet = await index.get([regionId, audioFileId]);
+
+        // console.log("toggleRegionIsActive - snippet to toggle: ", snippet);
+    
+        if (snippet) {
+            snippet.isActive = isActive;
+            snippetStore.put(snippet);
+            transaction.commit();
+        }
+    
+        if (isActive) {
+          regionRef.current = regions.current[regionId];
+          regions.current[regionId].setOptions({
+            color: 'rgba(255, 0, 0, 0.3)'
+          });
+        }
+        else {
+          regions.current[regionId].setOptions({
+            color: 'rgba(0, 0, 0, 0.1)'
+          })
+        }
+
+        // console.log("toggleRegionIsActive - regions.current: ", regions.current);
+    }
 
     const toggleLooping = () => {
         loopAudioRef.current = !loopAudioRef.current;
@@ -219,19 +366,15 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, s
     }
 
     useEffect(() => {
-        // console.log("useEffect in Waveform.tsx called! audioFile: ", audioFile);
-        // console.log("useEffect audioFile: ", audioFile);
-        // console.log("useEffect audioUrl: ", audioUrl);
-        // console.log("wavesurferRef.current: ", wavesurferRef.current);
-        if (audioUrl) {
+        if (audioFileId) {
             loadAudio(audioUrl);
+            loadRegionsForFile(audioFileId);
         }
         
-        if (!audioUrl && wavesurferRef.current) {
-            // console.log("ELSE: wavesurferRef.current: ", wavesurferRef.current);
+        if (!audioFileId && wavesurferRef.current) {
             wavesurferRef.current.empty();
         }
-    }, [audioFile, audioUrl]);
+    }, [audioFileId, audioFile, audioUrl]);
 
     return (
         <Box>

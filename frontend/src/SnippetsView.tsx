@@ -19,8 +19,7 @@ import {
 } from '@mui/icons-material';
 import ExportDialog from './ExportDialog.tsx';
 import ImportDialog from './ImportDialog.tsx';
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import RegionsPlugin from 'wavesurfer.js/plugins/regions';
+import { IDBPDatabase } from 'idb';
 
 type SnippetsProps = {
     audioFile: string | null,
@@ -32,9 +31,10 @@ type SnippetsProps = {
     initDB: () => Promise<IDBPDatabase>,
     setRenderTrigger: React.Dispatch<React.SetStateAction<number>>,
     secondsToHHMMSS: (seconds:number) => string,
+    HHMMSSToSeconds: (timestamp: string) => number,
 }
 
-const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRef, regionRef, renderTrigger, audioFileId, initDB, setRenderTrigger, secondsToHHMMSS}) => {
+const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRef, regionRef, renderTrigger, audioFileId, initDB, setRenderTrigger, secondsToHHMMSS, HHMMSSToSeconds}) => {
 
   const [openExport, setOpenExport] = useState(false);
   const [openImport, setOpenImport] = useState(false);
@@ -68,9 +68,6 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
         color: 'rgba(0, 0, 0, 0.1)'
       })
     }
-
-    // console.log("toggleRegionIsActive - regionRef.current: ", regionRef.current);
-    // console.log("toggleRegionIsActive - regions.current: ", regions.current);
     setRenderTrigger(prev => prev + 1);
 }
 
@@ -103,10 +100,6 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
 
       setRenderTrigger(prev => prev + 1);
   }
-
-  useEffect(() => {
-    console.log("useEffect SnippetsView.tsx called! regions.current: ", regions.current);
-  }, [renderTrigger, regionRef.current, audioFileId]);
 
   return (
       <Box>
@@ -155,6 +148,7 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
           regions={regions}
           openExport={openExport}
           setOpenExport={setOpenExport}
+          secondsToHHMMSS={secondsToHHMMSS}
         />
 
         <ImportDialog 
@@ -164,6 +158,7 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
           regionRef={regionRef}
           openImport={openImport}
           setOpenImport={setOpenImport}
+          HHMMSSToSeconds={HHMMSSToSeconds}
         />
       </Box>
   );

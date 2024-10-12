@@ -14,7 +14,8 @@ services:
     build: ./frontend
     volumes:
       - ./frontend:/app
-      # - /app/node_modules
+      # Volume to store the build output on your local machine
+      - ./frontend/build:/app/build
     ports:
       - "3000:3000"
     environment:

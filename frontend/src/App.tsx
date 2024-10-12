@@ -147,11 +147,11 @@ function App() {
           initDB={initDB}
         />
 
-        <TrimFile 
+        {/* <TrimFile 
           audioFile={audioFile}
           audioUrl={audioUrl}
           regionRef={regionRef}
-        />
+        /> */}
 
         <SnippetsView 
           audioFile={audioFile}

@@ -24,8 +24,8 @@ type WaveformProps = {
 };
 
 const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, initDB, setRenderTrigger, audioFileId, secondsToHHMMSS, audioUrl}) => {
-    const [loopAudio, setLoopAudio] = useState<boolean>(true);
-    const loopAudioRef = useRef<boolean>(true);
+    const [loopAudio, setLoopAudio] = useState<boolean>(false);
+    const loopAudioRef = useRef<boolean>(false);
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const [playPause, setPlayPause] = useState(false);
@@ -166,7 +166,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                     color: 'rgba(255, 0, 0, 0.3)'
                 })
 
-                if (loopAudioRef) {
+                if (loopAudioRef.current) {
                     loopAudioRef.current = false;
                     regionRef.current.play();
                     loopAudioRef.current = true;
@@ -179,6 +179,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
             });
 
             regionPlugin.on('region-out' as any, (region) => {
+                console.log('region-out - loopAudioRef.current: ', loopAudioRef.current);
 
                 if (loopAudioRef.current && regionRef.current == region) {
                     region.play();
@@ -325,8 +326,13 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
     }
 
     const toggleLooping = () => {
-        loopAudioRef.current = !loopAudioRef.current;
-        setLoopAudio(loopAudioRef.current);
+
+        const loopAudioCurrentState = loopAudioRef.current;
+
+        loopAudioRef.current = !loopAudioCurrentState;
+        setLoopAudio(!loopAudioCurrentState);
+
+        setRenderTrigger(prev => prev + 1);
     }
     
     const handlePlayPause: React.MouseEventHandler<HTMLButtonElement> = () => {
@@ -388,7 +394,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                         width: '100%',                 // Make sure the box takes up the full width
                         paddingRight: '16px',          // Add some padding on the right for spacing
                     }}
-                    >
+                >
                     {wavesurferRef.current && (
                         <>
                         {/* Container for Start and End Time, centered */}

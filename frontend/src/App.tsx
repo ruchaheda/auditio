@@ -135,7 +135,7 @@ function App() {
           audioUrl={audioUrl}
         />
 
-        <SnippetsActions 
+        {/* <SnippetsActions 
           regions={regions}
           wavesurferRef={wavesurferRef}
           regionRef={regionRef}
@@ -145,7 +145,7 @@ function App() {
           HHMMSSToSeconds={HHMMSSToSeconds}
           audioFileId={audioFileId}
           initDB={initDB}
-        />
+        /> */}
 
         {/* <TrimFile 
           audioFile={audioFile}

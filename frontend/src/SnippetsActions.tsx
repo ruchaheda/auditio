@@ -142,7 +142,7 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
           color: 'rgba(0, 0, 0, 0.1)'
         })
       }
-  }
+    }
   
   const clearSelection = () => {
     setRegionId('');

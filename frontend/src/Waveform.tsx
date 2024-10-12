@@ -191,16 +191,16 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
 
                 // TODO: update indexedDB database for updated region
                 toggleRegionIsActive(audioFileId, regionRef.current.id, false);
-                regionRef.current.setOptions({
-                    color: 'rgba(0, 0, 0, 0.1)'
-                })
+                // regionRef.current.setOptions({
+                //     color: 'rgba(0, 0, 0, 0.1)'
+                // })
 
                 toggleRegionIsActive(audioFileId, region.id, true);
                 addOrUpdateRegionInDB(audioFileId, region.id, region.start, region.end, region.content?.innerText, true);
                 regionRef.current = region;
-                regionRef.current.setOptions({
-                    color: 'rgba(255, 0, 0, 0.3)'
-                })
+                // regionRef.current.setOptions({
+                //     color: 'rgba(255, 0, 0, 0.3)'
+                // })
                 setRenderTrigger(prev => prev + 1);
             })
         });

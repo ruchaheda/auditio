@@ -1,17 +1,17 @@
 {
   "files": {
-    "main.css": "/static/css/main.e6c13ad2.css",
-    "main.js": "/static/js/main.ab12d75f.js",
-    "static/js/726.f458fb75.chunk.js": "/static/js/726.f458fb75.chunk.js",
-    "static/js/453.f648108d.chunk.js": "/static/js/453.f648108d.chunk.js",
-    "index.html": "/index.html",
-    "main.e6c13ad2.css.map": "/static/css/main.e6c13ad2.css.map",
-    "main.ab12d75f.js.map": "/static/js/main.ab12d75f.js.map",
-    "726.f458fb75.chunk.js.map": "/static/js/726.f458fb75.chunk.js.map",
-    "453.f648108d.chunk.js.map": "/static/js/453.f648108d.chunk.js.map"
+    "main.css": "/auditio/static/css/main.e6c13ad2.css",
+    "main.js": "/auditio/static/js/main.dab3e66a.js",
+    "static/js/726.f458fb75.chunk.js": "/auditio/static/js/726.f458fb75.chunk.js",
+    "static/js/453.f648108d.chunk.js": "/auditio/static/js/453.f648108d.chunk.js",
+    "index.html": "/auditio/index.html",
+    "main.e6c13ad2.css.map": "/auditio/static/css/main.e6c13ad2.css.map",
+    "main.dab3e66a.js.map": "/auditio/static/js/main.dab3e66a.js.map",
+    "726.f458fb75.chunk.js.map": "/auditio/static/js/726.f458fb75.chunk.js.map",
+    "453.f648108d.chunk.js.map": "/auditio/static/js/453.f648108d.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.ab12d75f.js"
+    "static/js/main.dab3e66a.js"
   ]
 }

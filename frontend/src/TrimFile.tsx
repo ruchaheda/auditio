@@ -51,37 +51,8 @@ const TrimFile: React.FC<TrimFileProps> = ({audioFile, audioUrl, regionRef}) => 
         saveAs(trimmedBlob, outputFileName);
     }
 
-    // Handle trimming the audio
-    // const handleTrim = () => {
-    //     if (!audioFile) return;
-
-    //     const trimData = {
-    //         filename: audioFile,
-    //         start: regionRef.current.start,
-    //         end: regionRef.current.end,
-    //         output_name: regionRef.current.content?.innerText,
-    //     };
-
-    //     fetch('http://localhost:5001/trim', {
-    //     method: 'POST',
-    //     headers: {
-    //         'Content-Type': 'application/json',
-    //     },
-    //     body: JSON.stringify(trimData),
-    //     })
-    //     .then((res) => res.json())
-    //     .then((data) => {
-    //         const downloadLink = document.createElement('a');
-    //         downloadLink.href = `http://localhost:5001/download/${data.output_filename}`;
-    //         downloadLink.download = data.output_filename;
-    //         downloadLink.target = '_blank'; // Opens the file in a new window/tab
-    //         downloadLink.click();
-    //     });
-    // };
-
     return (
         <Box>
-            {/* <Button variant="contained" onClick={handleTrim} color="primary">Trim & Download</Button> */}
             <Button variant="contained" onClick={handleFFmpegTrim} color="primary">Trim & Download</Button>
         </Box>
     );

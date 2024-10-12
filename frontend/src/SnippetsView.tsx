@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import {
     ArrowCircleUp,
+    ContentCut,
     Delete,
     Share,
     Upload,
@@ -20,6 +21,8 @@ import {
 import ExportDialog from './ExportDialog.tsx';
 import ImportDialog from './ImportDialog.tsx';
 import { IDBPDatabase } from 'idb';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { saveAs } from 'file-saver';
 
 type SnippetsProps = {
     audioFile: string | null,
@@ -34,7 +37,7 @@ type SnippetsProps = {
     HHMMSSToSeconds: (timestamp: string) => number,
 }
 
-const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRef, regionRef, renderTrigger, audioFileId, initDB, setRenderTrigger, secondsToHHMMSS, HHMMSSToSeconds}) => {
+const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRef, regionRef, audioFileId, initDB, setRenderTrigger, secondsToHHMMSS, HHMMSSToSeconds}) => {
 
   const [openExport, setOpenExport] = useState(false);
   const [openImport, setOpenImport] = useState(false);
@@ -101,6 +104,68 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
       setRenderTrigger(prev => prev + 1);
   }
 
+  const getAudioData = async () => {
+    if (!audioFileId) return;
+
+    const db = await initDB();
+    const transaction = db.transaction('audioFiles', 'readonly');
+    const audioFileStore = transaction.objectStore('audioFiles');
+
+    const audioFile = await audioFileStore.get(audioFileId);
+
+    return audioFile.data;
+  }
+
+  const getRegion = async (regionId: string) => {
+    const db = await initDB();
+    const transaction = db.transaction('snippets', 'readonly');
+    const snippetStore = transaction.objectStore('snippets');
+
+    const index = snippetStore.index('region_audio');
+    const snippet = await index.get([regionId, audioFileId]);
+
+    return snippet;
+  }
+
+  const handleFFmpegTrim = async (regionId: string) => {
+    if (!audioFile) return;
+
+    const base64Audio = await getAudioData();
+
+    const ffmpeg = new FFmpeg();
+    await ffmpeg.load();
+
+    // Step 1: Extract the base64 data from the data URL (remove "data:audio/mpeg;base64,")
+    const base64Data = base64Audio.split(',')[1];
+
+    // Step 2: Decode the base64 string into binary data (Uint8Array)
+    const binaryString = atob(base64Data);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Step 3: Write the binary data to FFmpeg's virtual filesystem
+    await ffmpeg.writeFile(audioFile, bytes);
+
+    const regionToTrim = await getRegion(regionId);
+    const outputFileName = regionToTrim.name + '.mp3';
+
+    await ffmpeg.exec(['-i', audioFile, 
+                        '-ss', regionToTrim.startTime.toString(), 
+                        '-to', regionToTrim.endTime.toString(), 
+                        '-c', 'copy', 
+                        '-metadata', `title=${outputFileName}`,
+                        outputFileName]);
+    const data = await ffmpeg.readFile(outputFileName);
+
+    // Create a Blob from the output file
+    const trimmedBlob = new Blob([data], { type: 'audio/mpeg' });
+
+    saveAs(trimmedBlob, outputFileName);
+}
+
   return (
       <Box>
           <TableContainer component={Paper}>
@@ -136,6 +201,7 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
                   </TableCell>
                   <TableCell>
                     <Tooltip title="Load"><IconButton size="large" onClick={() => loadSnippet(region.id)}><ArrowCircleUp fontSize="large" color="secondary" /></IconButton></Tooltip>
+                    <Tooltip title="Trim"><IconButton size="large" onClick={() => handleFFmpegTrim(region.id)}><ContentCut fontSize="large" color="secondary" /></IconButton></Tooltip>
                     <Tooltip title="Delete"><IconButton size="large" onClick={() => removeRegion(region.id)}><Delete fontSize="large" sx={{ color: "#f44336" }} /></IconButton></Tooltip>
                   </TableCell>
                 </TableRow>

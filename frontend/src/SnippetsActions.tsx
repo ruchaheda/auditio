@@ -227,7 +227,6 @@ const SnippetsActions: React.FC<SnippetActionsProps> = ({regions, wavesurferRef,
               (<p>Update Snippet</p>) :
               (<p>Create Snippet</p>)
             }
-            {/* Create/Update Snippet */}
           </Button>
         </Box>
     );

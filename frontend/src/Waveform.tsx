@@ -114,11 +114,16 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
 
             wavesurferRef.current.on('play' as any, () => {
                 setPlayPause(true);
-            })
+            });
 
             wavesurferRef.current.on('pause' as any, () => {
                 setPlayPause(false);
-            })
+            });
+
+            wavesurferRef.current.on('finish' as any, () => {
+                console.log('Track finished. Restarting...');
+                wavesurferRef.current.play(0);  // Restart playback from the beginning (0 seconds)
+            });
         
             // Listen for region creation
             regionPlugin.on('region-created' as any, (region) => {

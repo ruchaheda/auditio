@@ -112,6 +112,12 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                 setCurrentTime(progress);
             });
 
+            /** On audio position change, fires continuously during playback */
+            wavesurfer.on('timeupdate', (currentTime) => {
+                console.log('Time', currentTime + 's');
+                setCurrentTime(currentTime);
+            });
+
             wavesurferRef.current.on('play' as any, () => {
                 setPlayPause(true);
             });
@@ -424,6 +430,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                             flex: 'none',                 // Ensure it doesn't stretch or grow
                             }}
                         >
+                            <p style={{ marginRight: '16px' }}><b>Current Time:</b> {secondsToHHMMSS(currentTime)}</p>
                             <p style={{ marginRight: '16px' }}><b>Total Duration:</b> {secondsToHHMMSS(duration)}</p>
                         </Box>
                         </>

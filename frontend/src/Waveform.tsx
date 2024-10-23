@@ -3,7 +3,11 @@ import {
     Box,
     Button,
     Checkbox,
+    FormControl,
+    FormControlLabel,
     IconButton,
+    Radio,
+    RadioGroup,
 } from '@mui/material';
 import { Forward5, Forward10, Forward30, Replay5, Replay10, Replay30 } from '@mui/icons-material';
 import WaveSurfer from 'wavesurfer.js';
@@ -26,6 +30,8 @@ type WaveformProps = {
 const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, initDB, setRenderTrigger, audioFileId, secondsToHHMMSS, audioUrl}) => {
     const [loopAudio, setLoopAudio] = useState<boolean>(false);
     const loopAudioRef = useRef<boolean>(false);
+    const [loopOption, setLoopOption] = useState('');
+    const loopOptionRef = useRef('');
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const [playPause, setPlayPause] = useState(false);
@@ -114,7 +120,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
 
             /** On audio position change, fires continuously during playback */
             wavesurfer.on('timeupdate', (currentTime) => {
-                console.log('Time', currentTime + 's');
+                // console.log('Time', currentTime + 's');
                 setCurrentTime(currentTime);
             });
 
@@ -127,8 +133,10 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
             });
 
             wavesurferRef.current.on('finish' as any, () => {
-                console.log('Track finished. Restarting...');
-                wavesurferRef.current.play(0);  // Restart playback from the beginning (0 seconds)
+                console.log('Track finished.');
+                if (loopOptionRef.current == 'track') {
+                    wavesurferRef.current.play(0);  // Restart playback from the beginning (0 seconds)
+                }
             });
         
             // Listen for region creation
@@ -177,22 +185,24 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                     color: 'rgba(255, 0, 0, 0.3)'
                 })
 
-                if (loopAudioRef.current) {
-                    loopAudioRef.current = false;
-                    regionRef.current.play();
-                    loopAudioRef.current = true;
-                }
-                else {
-                    regionRef.current.play();
-                }
+                // if (loopAudioRef.current) {
+                //     loopAudioRef.current = false;
+                //     regionRef.current.play();
+                //     loopAudioRef.current = true;
+                // }
+                // else {
+                //     regionRef.current.play();
+                // }
+
+                regionRef.current.play();
                 
                 setRenderTrigger(prev => prev + 1);
             });
 
             regionPlugin.on('region-out' as any, (region) => {
-                console.log('region-out - loopAudioRef.current: ', loopAudioRef.current);
+                console.log('region-out - loopOptionRef.current: ', loopOptionRef.current);
 
-                if (loopAudioRef.current && regionRef.current == region) {
+                if (loopOptionRef.current == 'snippet' && regionRef.current == region) {
                     region.play();
                 }
             })
@@ -345,11 +355,28 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
 
         setRenderTrigger(prev => prev + 1);
     }
+
+    const handleLoopOptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // update loop option value
+        const selectedLoopOption = e.target.value;
+        setLoopOption(selectedLoopOption);
+        loopOptionRef.current = selectedLoopOption;
+
+        // if track or none, change current region's color to gray?
+        if (regionRef.current) {
+            if (selectedLoopOption != 'snippet') {
+                toggleRegionIsActive(audioFileId, regionRef.current.id, false);
+            }
+            else { // if snippet, mark current region as active?
+                toggleRegionIsActive(audioFileId, regionRef.current.id, true);
+            }
+        }
+    }
     
     const handlePlayPause: React.MouseEventHandler<HTMLButtonElement> = () => {
 
         if (regionRef.current && 
-            loopAudioRef.current &&
+            loopOptionRef.current == 'snippet' &&
             !playPause &&
             !(currentTime >= regionRef.current.start && currentTime <= regionRef.current.end)
         ) {
@@ -440,27 +467,60 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
 
             <Box
                 display="flex"
+                flexDirection="row"
                 justifyContent="center"
+                alignItems="center"
                 gap="20px"
                 p={2}
             >
-            <Box>
-                <Checkbox 
-                    checked={loopAudio}
-                    onChange={toggleLooping}
-                    inputProps={{ 'aria-label': 'controlled' }}
-                />Loop Audio
-            </Box>
+                <Box>
+                    <FormControl component="fieldset">
+                        <RadioGroup 
+                            value={loopOption} 
+                            onChange={handleLoopOptionChange}
+                        >
+                            <FormControlLabel 
+                                value="snippet"
+                                control={<Radio />}
+                                label="Loop Snippet"
+                            />
+                            <FormControlLabel 
+                                value="track"
+                                control={<Radio />}
+                                label="Loop Track"
+                            />
+                            <FormControlLabel 
+                                value=""
+                                control={<Radio />}
+                                label="None"
+                            />
+                        </RadioGroup>
+                        {/* <Checkbox 
+                            checked={loopAudio}
+                            onChange={toggleLooping}
+                            inputProps={{ 'aria-label': 'controlled' }}
+                        />Loop Snippet */}
+                    </FormControl>
+                </Box>
 
-            <IconButton size="large" onClick={() => seek(-30)}><Replay30 fontSize="large" /></IconButton>
-            <IconButton size="large" onClick={() => seek(-10)}><Replay10 fontSize="large" /></IconButton>
-            <IconButton size="large" onClick={() => seek(-5)}><Replay5 fontSize="large" /></IconButton>
+                <Box
+                    display="flex"
+                    flexDirection="row"
+                    justifyContent="center"
+                    alignItems="center"
+                    gap="20px"
+                    p={2}
+                >
+                    <IconButton size="large" onClick={() => seek(-30)}><Replay30 fontSize="large" /></IconButton>
+                    <IconButton size="large" onClick={() => seek(-10)}><Replay10 fontSize="large" /></IconButton>
+                    <IconButton size="large" onClick={() => seek(-5)}><Replay5 fontSize="large" /></IconButton>
 
-            <Button variant="contained" onClick={handlePlayPause} color="primary">Play/Pause</Button>
+                    <Button variant="contained" onClick={handlePlayPause} color="primary">Play/Pause</Button>
 
-            <IconButton size="large" onClick={() => seek(5)}><Forward5 fontSize="large" /></IconButton>
-            <IconButton size="large" onClick={() => seek(10)}><Forward10 fontSize="large" /></IconButton>
-            <IconButton size="large" onClick={() => seek(30)}><Forward30 fontSize="large" /></IconButton>
+                    <IconButton size="large" onClick={() => seek(5)}><Forward5 fontSize="large" /></IconButton>
+                    <IconButton size="large" onClick={() => seek(10)}><Forward10 fontSize="large" /></IconButton>
+                    <IconButton size="large" onClick={() => seek(30)}><Forward30 fontSize="large" /></IconButton>
+                </Box>
             </Box>
         </Box>
     );

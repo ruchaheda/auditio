@@ -81,6 +81,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
         const regionPlugin = RegionsPlugin.create();
 
         const wavesurfer = WaveSurfer.create({
+            backend: 'WebAudio',
             container: '#waveform',
             waveColor: 'rgb(200, 0, 200)',
             progressColor: 'rgb(100, 0, 100)',
@@ -120,7 +121,6 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
 
             /** On audio position change, fires continuously during playback */
             wavesurfer.on('timeupdate', (currentTime) => {
-                // console.log('Time', currentTime + 's');
                 setCurrentTime(currentTime);
             });
 

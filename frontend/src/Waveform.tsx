@@ -28,8 +28,6 @@ type WaveformProps = {
 };
 
 const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, initDB, setRenderTrigger, audioFileId, secondsToHHMMSS, audioUrl}) => {
-    const [loopAudio, setLoopAudio] = useState<boolean>(false);
-    const loopAudioRef = useRef<boolean>(false);
     const [loopOption, setLoopOption] = useState('');
     const loopOptionRef = useRef('');
     const [duration, setDuration] = useState(0);
@@ -346,16 +344,6 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
         }
     }
 
-    const toggleLooping = () => {
-
-        const loopAudioCurrentState = loopAudioRef.current;
-
-        loopAudioRef.current = !loopAudioCurrentState;
-        setLoopAudio(!loopAudioCurrentState);
-
-        setRenderTrigger(prev => prev + 1);
-    }
-
     const handleLoopOptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         // update loop option value
         const selectedLoopOption = e.target.value;
@@ -396,13 +384,14 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
     }
 
     useEffect(() => {
-        if (audioFileId) {
+
+        if (audioFileId > 0) {
             loadAudio();
             loadRegionsForFile(audioFileId);
         }
         
-        if (!audioFileId && wavesurferRef.current) {
-            wavesurferRef.current.empty();
+        if (audioFileId == 0 && wavesurferRef.current) {
+            wavesurferRef.current.destroy();
         }
     }, [audioFileId, audioUrl]);
 
@@ -495,11 +484,6 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                                 label="None"
                             />
                         </RadioGroup>
-                        {/* <Checkbox 
-                            checked={loopAudio}
-                            onChange={toggleLooping}
-                            inputProps={{ 'aria-label': 'controlled' }}
-                        />Loop Snippet */}
                     </FormControl>
                 </Box>
 

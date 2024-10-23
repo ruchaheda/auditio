@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { ArrowCircleUp, CloudUpload, Delete } from '@mui/icons-material';
 import { IDBPDatabase } from 'idb';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
 
 type FileUploadProps = {
     audioFile: string | null,
@@ -79,52 +80,95 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
         }
     }
 
-    const handleFileUploadIndexedDB = async (e: React.ChangeEvent<HTMLInputElement>) => {
-
+    const parseAndUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        let inputFileName = file.name;
+        let outputFileName = file.name;
+
+        // check if file is an mp3 file
+        const fileExtension = file.name.split('.').pop()?.toLowerCase();
+        const isMp3 = fileExtension === 'mp3';
+
+        if (!isMp3) {
+            setMessage('Converting file to .mp3...');
+
+            // Load FFmpeg if needed
+            const ffmpeg = new FFmpeg();
+            await ffmpeg.load();
+
+            // Convert the file to MP3 using FFmpeg.js
+            outputFileName = file.name.replace(/\.[^/.]+$/, ".mp3");
+
+            await ffmpeg.writeFile(inputFileName, new Uint8Array(await file.arrayBuffer()));
+
+            await ffmpeg.exec(['-i', file.name,
+                '-codec:a', 'libmp3lame', outputFileName]);
+
+            const mp3Data = await ffmpeg.readFile(outputFileName);
+            setMessage('File converted successfully! Uploading...')
+
+            // Create a Blob from the MP3 data and create a new File object
+            const mp3Blob = new Blob([mp3Data], { type: 'audio/mp3' });
+            const convertedFile = new File([mp3Blob], outputFileName, { type: 'audio/mp3' });
+
+            // Set up the FileReader to read the MP3 Blob as a Data URL
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const audioData = e.target?.result;
+
+                uploadFileToIndexedDB(convertedFile, audioData);
+            }
+            // Start reading the mp3Blob as Data URL
+            reader.readAsDataURL(mp3Blob);  // Convert the MP3 Blob to a Data URL (base64 encoded string)
+        }
+        else {
+            // For MP3 files, store the file without conversion
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const audioData = event.target?.result;  // Data URL of the original MP3 file
+                // Store the original MP3 file in IndexedDB
+                await uploadFileToIndexedDB(file, audioData);  // Directly store the MP3 file's data
+            };
+            reader.readAsDataURL(file);  // Convert the original MP3 file to a Data URL
+        }
+    }
+
+    const uploadFileToIndexedDB = async (file: File, audioData: string | ArrayBuffer | null | undefined) => {
         const db = await initDB();
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const audioData = event.target?.result;
+        const transaction = db.transaction('audioFiles', 'readwrite');
+        const store = transaction.objectStore('audioFiles');
 
-            // Store the file in IndexedDB
-            const transaction = db.transaction('audioFiles', 'readwrite');
+        const allFiles = await store.getAll();
+        allFilesRef.current = allFiles;
+        const existingFile = allFiles.find(f => f.fileName === file.name);
 
-            const store = transaction.objectStore('audioFiles');
-            const allFiles = await store.getAll();
-            allFilesRef.current = allFiles;
-            const existingFile = allFiles.find(f => f.fileName === file.name);
-
-            if (existingFile) {
-                if (existingFile.id != audioFileId) {
-                    toggleAudioFileIsActive(audioFileId, false);
-                    toggleAudioFileIsActive(existingFile.id, true);
-                }
-
-                setMessage('Audio file already exists in the database!');
-            }
-            else {
+        if (existingFile) {
+            if (existingFile.id != audioFileId) {
                 toggleAudioFileIsActive(audioFileId, false);
-
-                const newFileId = await store.add({
-                    fileName: file.name,
-                    data: audioData,
-                    uploadTime: (new Date).getTime(),
-                    isActive: true,
-                });
-
-                setMessage('Audio file uploaded and stored successfully!');
-                setAudioFile(file.name);
-                setAudioUrl(audioData ? audioData?.toString() : '');
-                setAudioFileId(newFileId as number);
-                fetchAllFiles();
+                toggleAudioFileIsActive(existingFile.id, true);
             }
-        };
 
-        reader.readAsDataURL(file); // Convert the file to a data URL to store
+            setMessage('Audio file already exists in the database!');
+        }
+        else {
+            toggleAudioFileIsActive(audioFileId, false);
+
+            const newFileId = await store.add({
+                fileName: file.name,
+                data: audioData,  // Store the Data URL from the converted MP3 file
+                uploadTime: (new Date).getTime(),
+                isActive: true,
+            });
+
+            setMessage('Audio file uploaded and stored successfully!');
+            setAudioFile(file.name);
+            setAudioUrl(audioData ? audioData.toString() : '');
+            setAudioFileId(newFileId as number);
+            fetchAllFiles();
+        }
     }
 
     // Retrieve the audio from IndexedDB and display it
@@ -216,6 +260,7 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
     const loadFile = (fileId: number) => {
         toggleAudioFileIsActive(audioFileId, false);
         toggleAudioFileIsActive(fileId, true);
+        setMessage("File loaded successfully!");
     }
 
     const deleteFile = async (fileId: number) => {
@@ -226,6 +271,7 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
         const store = transaction.objectStore('audioFiles');
 
         const file = await store.get(fileId);
+        const deletedFileName = file.fileName;
         console.log("deleteFile - file: ", file);
         if (audioFileId == file.id) {
             setAudioFileId(0);
@@ -235,6 +281,7 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
 
         deleteSnippetsForAudioFile(file.id);
         store.delete(file.id);
+        setMessage('Audio file deleted: ' + deletedFileName);
 
         setRenderTrigger(prev => prev + 1);
     }
@@ -242,7 +289,9 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
     useEffect(() => {
         fetchAllFiles();
         deleteOldEntries();
-        retrieveAudio();
+        if (audioFileId == 0) {
+            retrieveAudio();
+        }
     }, [renderTrigger]);
 
     return (
@@ -267,7 +316,7 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
                     component="label"
                     startIcon={<CloudUpload />}
                     >Upload File
-                    <input type="file" hidden onChange={handleFileUploadIndexedDB} />
+                    <input type="file" hidden onChange={parseAndUploadFile} />
                 </Button>
                 <Button
                     variant="contained"
@@ -281,9 +330,9 @@ const FileUpload: React.FC<FileUploadProps> = ({audioFile, setAudioFile, initDB,
                 <p><b>Current file:</b> {audioFile}</p>
                 )}
 
-                {/* { message && (
+                { message && (
                     <p>{message}</p>
-                )} */}
+                )}
             </Box>
             <Box>
                 <TableContainer>

@@ -15,9 +15,9 @@ import {
 import {
     Add,
     ArrowCircleUp,
-    ContentCut,
     Delete,
     Done,
+    Download,
     Edit,
     Share,
     Upload,
@@ -278,13 +278,17 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
           <Table sx={{ width: "80vw"}} aria-label="simple table">
             <TableHead>
               <TableRow>
-                <TableCell colSpan={6} align="right">
+                <TableCell colSpan={4}>
+                  <i>See below for all the regions you've created on this track!</i><br />
+                  <i>Load, Edit, Download, or Delete the snippet through the actions buttons.</i>
+                </TableCell>
+                <TableCell align="right">
                   <Tooltip title="Share"><IconButton onClick={() => setOpenImport(true)}><Upload fontSize="large" /></IconButton></Tooltip>
                   <Tooltip title="Share"><IconButton onClick={() => setOpenExport(true)}><Share fontSize="large" /></IconButton></Tooltip>
                 </TableCell>
               </TableRow>
               <TableRow>
-                <TableCell><b>ID</b></TableCell>
+                {/* <TableCell><b>ID</b></TableCell> */}
                 <TableCell><b>Start Time</b></TableCell>
                 <TableCell><b>End Time</b></TableCell>
                 <TableCell><b>Snippet Name</b></TableCell>
@@ -296,9 +300,9 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
               {Object.values(regions.current).map((region: any, index) => {
                 return (
                 <TableRow key={index}>
-                  <TableCell> 
+                  {/* <TableCell> 
                     {region.id}
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell>
                     { regionIdToEdit != '' && regionIdToEdit == region.id ?
                       <TextField 
@@ -340,7 +344,7 @@ const SnippetsView: React.FC<SnippetsProps> = ({audioFile, regions, wavesurferRe
                       (<Tooltip title="Edit"><IconButton size="large" onClick={() => openEdit(region.id)}><Edit fontSize="large" color="secondary" /></IconButton></Tooltip>)
                     }
                     
-                    <Tooltip title="Trim"><IconButton size="large" onClick={() => handleFFmpegTrim(region.id)}><ContentCut fontSize="large" color="secondary" /></IconButton></Tooltip>
+                    <Tooltip title="Trim"><IconButton size="large" onClick={() => handleFFmpegTrim(region.id)}><Download fontSize="large" color="secondary" /></IconButton></Tooltip>
                     <Tooltip title="Delete"><IconButton size="large" onClick={() => removeRegion(region.id)}><Delete fontSize="large" sx={{ color: "#f44336" }} /></IconButton></Tooltip>
                   </TableCell>
                 </TableRow>

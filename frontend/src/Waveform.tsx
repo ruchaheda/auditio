@@ -33,6 +33,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const [playPause, setPlayPause] = useState(false);
+    const [zoomLevel, setZoomLevel] = useState(20);
     const BASE64_MARKER = ';base64,';
 
     const convertDataURIToBinary = (dataURI: string) => {
@@ -106,6 +107,7 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
             console.log("waveform is ready!");
             setDuration(wavesurferRef.current.getDuration());
             loadRegionsForFile(audioFileId);
+            setZoomLevel(100);
 
             regionPlugin.enableDragSelection({
                 color: 'rgba(255, 0, 0, 0.3)',
@@ -383,6 +385,10 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
         wavesurferRef.current.skip(seconds);
     }
 
+    const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setZoomLevel(parseInt(e.target.value));
+    }
+
     useEffect(() => {
 
         if (audioFileId > 0) {
@@ -394,6 +400,12 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
             wavesurferRef.current.destroy();
         }
     }, [audioFileId, audioUrl]);
+
+    useEffect(() => {
+        if (wavesurferRef.current) {
+            wavesurferRef.current.zoom(zoomLevel);
+        }
+    }, [zoomLevel])
 
     return (
         <Box>
@@ -424,6 +436,28 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                 >
                     {wavesurferRef.current && (
                         <>
+                        {/* Container for Zoom */}
+                        <Box
+                            sx={{
+                                textAlign: 'left',           // Align Total Duration text to the right
+                                display: 'flex',                 // Ensure it doesn't stretch or grow
+                                paddingLeft: '16px',
+                            }}
+                        >
+                            <label>
+                                Zoom: 
+                                {/* {Math.round((zoomLevel / 500) * 100)} % */}
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="500"
+                                    value={zoomLevel}
+                                    onChange={handleZoomChange}
+                                    style={{ marginLeft: '10px' }}
+                                />
+                            </label>
+                        </Box>
+
                         {/* Container for Start and End Time, centered */}
                         <Box
                             sx={{
@@ -442,8 +476,8 @@ const Waveform: React.FC<WaveformProps> = ({regions, wavesurferRef, regionRef, i
                         {/* Container for Total Duration aligned to the right */}
                         <Box
                             sx={{
-                            textAlign: 'right',           // Align Total Duration text to the right
-                            flex: 'none',                 // Ensure it doesn't stretch or grow
+                                textAlign: 'right',           // Align Total Duration text to the right
+                                flex: 'none',                 // Ensure it doesn't stretch or grow
                             }}
                         >
                             <p style={{ marginRight: '16px' }}><b>Current Time:</b> {secondsToHHMMSS(currentTime)}</p>
